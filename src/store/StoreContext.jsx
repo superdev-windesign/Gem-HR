@@ -7,39 +7,52 @@ const KEY = 'windesign-os-data-v1'
 const StoreCtx = createContext(null)
 
 // Instant first paint from the local cache; the server (Turso) is the source of truth.
+// Falls back to an EMPTY workspace (never demo data) so a stale cache can never
+// repopulate the database before the server load resolves.
 function loadCache() {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) return JSON.parse(raw)
   } catch {}
-  return buildSeed()
+  return buildEmpty()
 }
 
 export function StoreProvider({ children }) {
   const [db, setDb] = useState(loadCache)
   const [status, setStatus] = useState('connecting') // connecting | online | offline
-  const skipSave = useRef(true)
+  // Persistence is gated until the first server load resolves, and a save only
+  // fires when the content actually differs from what was last loaded/saved.
+  // Together these prevent the local cache from being pushed back over Turso.
+  const readyToSave = useRef(false)
+  const lastSynced = useRef(null)
 
   // On mount, pull authoritative state from Turso (falls back to local cache).
   useEffect(() => {
     let cancelled = false
     fetchState()
       .then((state) => {
-        if (cancelled || !state) { if (!cancelled) setStatus('online'); return }
-        skipSave.current = true
-        setDb(state)
+        if (cancelled) return
+        if (state) {
+          lastSynced.current = JSON.stringify(state)
+          setDb(state)
+        }
         setStatus('online')
       })
-      .catch(() => !cancelled && setStatus('offline'))
+      .catch(() => { if (!cancelled) setStatus('offline') })
+      .finally(() => { if (!cancelled) readyToSave.current = true })
     return () => { cancelled = true }
   }, [])
 
-  // Persist: always cache locally; debounce-push to Turso (skip the load echo).
+  // Persist: always cache locally; debounce-push to Turso only for real changes.
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(db)) } catch {}
-    if (skipSave.current) { skipSave.current = false; return }
+    const serialized = JSON.stringify(db)
+    try { localStorage.setItem(KEY, serialized) } catch {}
+    if (!readyToSave.current) return
+    if (serialized === lastSynced.current) return
     const t = setTimeout(() => {
-      saveState(db).then(() => setStatus('online')).catch(() => setStatus('offline'))
+      saveState(db)
+        .then(() => { lastSynced.current = serialized; setStatus('online') })
+        .catch(() => setStatus('offline'))
     }, 500)
     return () => clearTimeout(t)
   }, [db])

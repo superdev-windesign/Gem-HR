@@ -1,5 +1,5 @@
 // Seed data — gives the app a realistic populated state on first run.
-import { uid } from './format'
+import { uid } from './format.js'
 
 const daysAgo = (n) => {
   const d = new Date()
@@ -168,4 +168,16 @@ export function buildSeed() {
     ],
     settings,
   }
+}
+
+// A clean workspace: no demo records, but keeps sensible company/tax defaults
+// so invoices, letterheads and payroll still have configuration to work with.
+export function buildEmpty() {
+  const seed = buildSeed()
+  const empty = {}
+  for (const k of Object.keys(seed)) empty[k] = Array.isArray(seed[k]) ? [] : seed[k]
+  empty.activity = [
+    { id: uid('act'), type: 'System', message: 'Workspace initialized — ready for your data.', date: new Date().toISOString() },
+  ]
+  return empty
 }

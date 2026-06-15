@@ -18,7 +18,7 @@ const ROLES = [
 ]
 
 export default function SettingsPage() {
-  const { db, settings, updateSettings, restore, resetAll } = useStore()
+  const { db, settings, updateSettings, restore, resetAll, clearAll } = useStore()
   const { theme, toggle } = useTheme()
   const { confirm, node } = useConfirm()
   const [tab, setTab] = useState('company')
@@ -59,6 +59,10 @@ export default function SettingsPage() {
 
   const reset = async () => {
     if (await confirm({ title: 'Reset all data?', message: 'Everything will be wiped and replaced with fresh demo data.', danger: true, confirmText: 'Reset' })) resetAll()
+  }
+
+  const clear = async () => {
+    if (await confirm({ title: 'Clear all records?', message: 'Removes every employee, client, invoice and expense. Company settings are kept. This cannot be undone.', danger: true, confirmText: 'Clear All' })) clearAll()
   }
 
   return (
@@ -131,8 +135,12 @@ export default function SettingsPage() {
           </Card>
           <Card className="sm:col-span-2 border-rose-200 dark:border-rose-900/50">
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <div><h3 className="font-bold flex items-center gap-2"><RotateCcw size={18} className="text-rose-500" /> Reset Workspace</h3><p className="text-sm text-slate-500 mt-1">Wipe everything and reload fresh demo data.</p></div>
-              <button className="btn-danger" onClick={reset}><Trash2 size={16} /> Reset All Data</button>
+              <div><h3 className="font-bold flex items-center gap-2"><Trash2 size={18} className="text-rose-500" /> Clear Workspace</h3><p className="text-sm text-slate-500 mt-1">Remove all employees, clients, invoices & expenses. Keeps company settings — start fresh.</p></div>
+              <button className="btn-danger" onClick={clear}><Trash2 size={16} /> Clear All Records</button>
+            </div>
+            <div className="flex items-center justify-between flex-wrap gap-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+              <div><h3 className="font-bold flex items-center gap-2"><RotateCcw size={18} className="text-slate-500" /> Load Demo Data</h3><p className="text-sm text-slate-500 mt-1">Replace everything with the sample dataset (for testing).</p></div>
+              <button className="btn-outline" onClick={reset}><RotateCcw size={16} /> Load Demo Data</button>
             </div>
           </Card>
           <Card className="sm:col-span-2">

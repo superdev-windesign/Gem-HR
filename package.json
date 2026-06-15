@@ -6,10 +6,19 @@
   "description": "Windesign OS — a complete Business Operating System (HRMS + CRM + Finance + ERP)",
   "scripts": {
     "dev": "vite",
+    "server": "node --env-file=.env server/index.js",
+    "seed": "node --env-file=.env server/seed.js",
+    "clear": "node --env-file=.env server/clear.js",
     "build": "vite build",
+    "start": "node --env-file=.env server/index.js",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.3",
+    "@react-oauth/google": "^0.13.5",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "google-auth-library": "^10.7.0",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

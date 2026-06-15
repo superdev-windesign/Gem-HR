@@ -1,11 +1,13 @@
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
-import { buildSeed } from '../lib/seed'
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { buildSeed, buildEmpty } from '../lib/seed'
 import { uid, monthKey } from '../lib/format'
+import { fetchState, saveState } from '../lib/api'
 
 const KEY = 'windesign-os-data-v1'
 const StoreCtx = createContext(null)
 
-function load() {
+// Instant first paint from the local cache; the server (Turso) is the source of truth.
+function loadCache() {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) return JSON.parse(raw)
@@ -14,12 +16,32 @@ function load() {
 }
 
 export function StoreProvider({ children }) {
-  const [db, setDb] = useState(load)
+  const [db, setDb] = useState(loadCache)
+  const [status, setStatus] = useState('connecting') // connecting | online | offline
+  const skipSave = useRef(true)
 
+  // On mount, pull authoritative state from Turso (falls back to local cache).
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(db))
-    } catch {}
+    let cancelled = false
+    fetchState()
+      .then((state) => {
+        if (cancelled || !state) { if (!cancelled) setStatus('online'); return }
+        skipSave.current = true
+        setDb(state)
+        setStatus('online')
+      })
+      .catch(() => !cancelled && setStatus('offline'))
+    return () => { cancelled = true }
+  }, [])
+
+  // Persist: always cache locally; debounce-push to Turso (skip the load echo).
+  useEffect(() => {
+    try { localStorage.setItem(KEY, JSON.stringify(db)) } catch {}
+    if (skipSave.current) { skipSave.current = false; return }
+    const t = setTimeout(() => {
+      saveState(db).then(() => setStatus('online')).catch(() => setStatus('offline'))
+    }, 500)
+    return () => clearTimeout(t)
   }, [db])
 
   // ---- generic helpers -------------------------------------------------
@@ -254,6 +276,7 @@ export function StoreProvider({ children }) {
     setDb(data)
   }, [])
   const resetAll = useCallback(() => setDb(buildSeed()), [])
+  const clearAll = useCallback(() => setDb(buildEmpty()), [])
   const updateSettings = useCallback((patch) => {
     setDb((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
   }, [])
@@ -264,6 +287,7 @@ export function StoreProvider({ children }) {
   const value = {
     db,
     ...db,
+    status,
     finance,
     log,
     addTimeline,
@@ -287,6 +311,7 @@ export function StoreProvider({ children }) {
     deleteExpense,
     restore,
     resetAll,
+    clearAll,
     updateSettings,
   }
 

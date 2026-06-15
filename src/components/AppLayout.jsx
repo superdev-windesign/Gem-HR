@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from '../store/ThemeContext'
 import { useStore } from '../store/StoreContext'
+import { useAuth } from '../store/AuthContext'
 import GlobalSearch from './GlobalSearch'
 import { Avatar } from './ui'
 import { relativeTime } from '../lib/format'
@@ -37,7 +38,8 @@ function Logo() {
 
 export default function AppLayout() {
   const { theme, toggle } = useTheme()
-  const { settings, activity } = useStore()
+  const { settings, activity, status } = useStore()
+  const { user, logout, authEnabled } = useAuth()
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -78,11 +80,18 @@ export default function AppLayout() {
       </nav>
       <div className="border-t border-slate-200 dark:border-slate-800 pt-3">
         <div className="flex items-center gap-3 px-2 py-2">
-          <Avatar name={settings.company.name} size={36} />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{settings.company.name}</p>
-            <p className="text-xs text-slate-400 truncate">Admin · CEO</p>
+          {user?.picture ? (
+            <img src={user.picture} alt={user.name} className="h-9 w-9 rounded-full object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            <Avatar name={user?.name || settings.company.name} size={36} />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{user?.name || settings.company.name}</p>
+            <p className="text-xs text-slate-400 truncate">{user?.email || 'Admin · CEO'}</p>
           </div>
+          {authEnabled && user && (
+            <button onClick={logout} className="btn-ghost !p-1.5" title="Sign out"><LogOut size={16} /></button>
+          )}
         </div>
       </div>
     </>
@@ -120,6 +129,10 @@ export default function AppLayout() {
             </kbd>
           </button>
           <div className="flex-1" />
+          <span className="hidden sm:flex items-center gap-1.5 chip bg-slate-100 dark:bg-slate-800 text-slate-500" title={`Turso database — ${status}`}>
+            <span className={`h-2 w-2 rounded-full ${status === 'online' ? 'bg-emerald-500' : status === 'offline' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse'}`} />
+            {status === 'online' ? 'Turso' : status === 'offline' ? 'Offline' : 'Syncing'}
+          </span>
           <div className="relative">
             <button className="btn-ghost !p-2 relative" onClick={() => setNotifOpen((o) => !o)}>
               <Bell size={19} />

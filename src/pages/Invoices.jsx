@@ -7,40 +7,71 @@ import { useStore, toINR } from '../store/StoreContext'
 import { PageHeader, Card, StatCard, SearchInput, Select, Badge, Modal, Field, Input, Textarea, EmptyState, Tabs, useConfirm } from '../components/ui'
 import { money, compactMoney, fmtDate, fmtDateTime, todayISO, uid } from '../lib/format'
 import { CURRENCIES } from '../lib/format'
-import { invoiceHTML } from '../lib/documents'
+import { invoiceHTML, computeInvoiceTax } from '../lib/documents'
 import { exportPDF, exportDOC, exportCSV } from '../lib/export'
 
 const STATUSES = ['Draft', 'Sent', 'Viewed', 'Paid', 'Partially Paid', 'Overdue', 'Cancelled']
-
-function compute(items, discount, taxRate) {
-  const subtotal = items.reduce((s, i) => s + Number(i.qty || 0) * Number(i.rate || 0), 0)
-  const taxAmount = Math.round(((subtotal - Number(discount || 0)) * Number(taxRate || 0)) / 100)
-  const total = subtotal - Number(discount || 0) + taxAmount
-  return { subtotal, taxAmount, total }
-}
+const typeFor = (client) => ((client?.country || '').toLowerCase() === 'india' ? 'gst' : 'export')
 
 function InvoiceEditor({ open, onClose, invoice }) {
   const { clients, saveInvoice, nextInvoiceNumber, settings } = useStore()
-  const blank = () => ({
-    id: uid('inv'), number: nextInvoiceNumber(), clientId: clients[0]?.id || '', date: todayISO(),
-    dueDate: todayISO(), currency: settings.company.currency || 'INR',
-    items: [{ id: uid('it'), description: '', qty: 1, rate: 0 }],
-    discount: 0, taxRate: settings.defaults.taxRate || 18, notes: 'Thank you for your business.',
-    terms: 'Payment due within 15 days of invoice date.', status: 'Draft', amountPaid: 0, payments: [],
-  })
+  const blank = () => {
+    const c = clients[0]
+    const type = typeFor(c)
+    return {
+      id: uid('inv'), type, number: nextInvoiceNumber(type), clientId: c?.id || '',
+      date: todayISO(), dueDate: todayISO(),
+      currency: type === 'gst' ? 'INR' : c?.currency || 'USD',
+      items: [{ id: uid('it'), description: '', note: '', qty: 1, rate: 0 }],
+      discount: 0, taxRate: settings.defaults.gstRate || 18,
+      reverseCharge: 'No', modeOfTransport: 'Digital',
+      notes: '', status: 'Draft', amountPaid: 0, payments: [],
+    }
+  }
   const [form, setForm] = useState(invoice || blank)
   useEffect(() => { setForm(invoice || blank()) }, [invoice, open])
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
   const setItem = (id, k, v) => set('items', form.items.map((it) => (it.id === id ? { ...it, [k]: v } : it)))
-  const addItem = () => set('items', [...form.items, { id: uid('it'), description: '', qty: 1, rate: 0 }])
+  const addItem = () => set('items', [...form.items, { id: uid('it'), description: '', note: '', qty: 1, rate: 0 }])
   const delItem = (id) => set('items', form.items.filter((it) => it.id !== id))
-  const { subtotal, taxAmount, total } = compute(form.items, form.discount, form.taxRate)
+
+  const client = clients.find((c) => c.id === form.clientId)
+  const isGST = form.type === 'gst'
+
+  const onClientChange = (id) => {
+    const c = clients.find((x) => x.id === id)
+    const type = typeFor(c)
+    setForm((f) => ({
+      ...f, clientId: id, type,
+      currency: type === 'gst' ? 'INR' : c?.currency || f.currency || 'USD',
+      number: invoice ? f.number : nextInvoiceNumber(type),
+    }))
+  }
+  const onTypeChange = (type) => {
+    setForm((f) => ({
+      ...f, type,
+      currency: type === 'gst' ? 'INR' : f.currency === 'INR' ? 'USD' : f.currency,
+      number: invoice ? f.number : nextInvoiceNumber(type),
+    }))
+  }
+
+  // Always recompute live from the current inputs (don't trust stored split).
+  const t = computeInvoiceTax(
+    { type: form.type, items: form.items, discount: form.discount, taxRate: form.taxRate },
+    client,
+    settings.company
+  )
 
   const save = (status) => {
-    const final = { ...form, subtotal, taxAmount, total, status: status || form.status }
-    saveInvoice(final)
+    saveInvoice({
+      ...form, subtotal: t.subtotal, discount: Number(form.discount || 0), taxRate: Number(form.taxRate),
+      cgst: t.cgst, sgst: t.sgst, igst: t.igst, taxAmount: t.taxAmount, total: t.total,
+      status: status || form.status,
+    })
     onClose()
   }
+
+  const cur = form.currency
 
   return (
     <Modal open={open} onClose={onClose} title={invoice ? `Edit ${invoice.number}` : 'Create Invoice'} size="xl"
@@ -49,40 +80,64 @@ function InvoiceEditor({ open, onClose, invoice }) {
         <button className="btn-outline" onClick={() => save('Draft')}>Save Draft</button>
         <button className="btn-primary" onClick={() => save('Sent')}><Send size={15} /> Save & Mark Sent</button>
       </>}>
+      {/* Type toggle */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="label !mb-0">Invoice Type</span>
+        <div className="flex gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
+          {[{ v: 'gst', l: '🇮🇳 Indian (GST)' }, { v: 'export', l: '🌍 Export (International)' }].map((o) => (
+            <button key={o.v} onClick={() => onTypeChange(o.v)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${form.type === o.v ? 'bg-white dark:bg-slate-700 text-brand-600 shadow-sm' : 'text-slate-500'}`}>{o.l}</button>
+          ))}
+        </div>
+        {client && <span className="text-xs text-slate-400">Auto-set from {client.company || client.name} · {client.country}</span>}
+      </div>
+
       <div className="grid sm:grid-cols-3 gap-4">
         <Field label="Invoice Number"><Input value={form.number} onChange={(e) => set('number', e.target.value)} /></Field>
-        <Field label="Client"><Select value={form.clientId} onChange={(e) => set('clientId', e.target.value)}>{clients.map((c) => <option key={c.id} value={c.id}>{c.company || c.name}</option>)}</Select></Field>
-        <Field label="Currency"><Select value={form.currency} onChange={(e) => set('currency', e.target.value)}>{Object.keys(CURRENCIES).map((c) => <option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Client"><Select value={form.clientId} onChange={(e) => onClientChange(e.target.value)}>{clients.length === 0 && <option value="">No clients — add one first</option>}{clients.map((c) => <option key={c.id} value={c.id}>{c.company || c.name}</option>)}</Select></Field>
+        <Field label="Currency"><Select value={form.currency} onChange={(e) => set('currency', e.target.value)} disabled={isGST}>{Object.keys(CURRENCIES).map((c) => <option key={c}>{c}</option>)}</Select></Field>
         <Field label="Invoice Date"><Input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} /></Field>
         <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} /></Field>
         <Field label="Status"><Select value={form.status} onChange={(e) => set('status', e.target.value)}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</Select></Field>
+        <Field label="Mode of Transport"><Input value={form.modeOfTransport} onChange={(e) => set('modeOfTransport', e.target.value)} /></Field>
+        {isGST && <Field label="Reverse Charge"><Select value={form.reverseCharge} onChange={(e) => set('reverseCharge', e.target.value)}><option>No</option><option>Yes</option></Select></Field>}
+        {isGST && <Field label="GST Rate (%)"><Input type="number" value={form.taxRate} onChange={(e) => set('taxRate', e.target.value)} /></Field>}
       </div>
 
       <p className="label mt-5">Line Items / Services</p>
       <div className="space-y-2">
+        <div className="hidden sm:grid grid-cols-12 gap-2 text-xs text-slate-400 px-1">
+          <span className="col-span-5">Service name / sub-note</span><span className="col-span-3">Duration / Qty</span><span className="col-span-2">Rate</span><span className="col-span-2">Total</span>
+        </div>
         {form.items.map((it) => (
-          <div key={it.id} className="grid grid-cols-12 gap-2 items-center">
-            <input className="input col-span-6" placeholder="Service description" value={it.description} onChange={(e) => setItem(it.id, 'description', e.target.value)} />
-            <input className="input col-span-2" type="number" placeholder="Qty" value={it.qty} onChange={(e) => setItem(it.id, 'qty', e.target.value)} />
-            <input className="input col-span-3" type="number" placeholder="Rate" value={it.rate} onChange={(e) => setItem(it.id, 'rate', e.target.value)} />
-            <button className="btn-ghost !p-2 col-span-1 text-rose-500" onClick={() => delItem(it.id)} disabled={form.items.length === 1}><X size={16} /></button>
+          <div key={it.id} className="grid grid-cols-12 gap-2 items-start">
+            <div className="col-span-5 space-y-1">
+              <input className="input" placeholder="Service name" value={it.description} onChange={(e) => setItem(it.id, 'description', e.target.value)} />
+              <input className="input !py-1.5 text-xs" placeholder="Sub-note (e.g. advance / final payment)" value={it.note || ''} onChange={(e) => setItem(it.id, 'note', e.target.value)} />
+            </div>
+            <input className="input col-span-3" placeholder="1 or 'Multiple Commissions'" value={it.qty} onChange={(e) => setItem(it.id, 'qty', e.target.value)} />
+            <input className="input col-span-2" type="number" placeholder="Rate" value={it.rate} onChange={(e) => setItem(it.id, 'rate', e.target.value)} />
+            <div className="col-span-2 flex items-center gap-1">
+              <span className="text-sm font-semibold flex-1 truncate">{money(t.subtotal != null ? (Number(it.rate || 0) * (isNaN(Number(it.qty)) || it.qty === '' ? 1 : Number(it.qty))) : 0, cur)}</span>
+              <button className="btn-ghost !p-1.5 text-rose-500" onClick={() => delItem(it.id)} disabled={form.items.length === 1}><X size={15} /></button>
+            </div>
           </div>
         ))}
       </div>
       <button className="btn-ghost mt-2 text-brand-600" onClick={addItem}><Plus size={15} /> Add line item</button>
 
       <div className="grid sm:grid-cols-2 gap-4 mt-4">
-        <div className="space-y-3">
-          <Field label="Discount"><Input type="number" value={form.discount} onChange={(e) => set('discount', e.target.value)} /></Field>
-          <Field label="Tax Rate (%)"><Input type="number" value={form.taxRate} onChange={(e) => set('taxRate', e.target.value)} /></Field>
-          <Field label="Notes"><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
-          <Field label="Terms"><Textarea value={form.terms} onChange={(e) => set('terms', e.target.value)} /></Field>
-        </div>
+        <Field label="Notes"><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Optional note shown on the invoice" /></Field>
         <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-4 h-fit">
-          <div className="flex justify-between py-1.5 text-sm"><span className="text-slate-500">Subtotal</span><span className="font-semibold">{money(subtotal, form.currency)}</span></div>
-          <div className="flex justify-between py-1.5 text-sm"><span className="text-slate-500">Discount</span><span className="font-semibold">− {money(form.discount, form.currency)}</span></div>
-          <div className="flex justify-between py-1.5 text-sm"><span className="text-slate-500">Tax ({form.taxRate}%)</span><span className="font-semibold">{money(taxAmount, form.currency)}</span></div>
-          <div className="flex justify-between py-2 mt-1 border-t border-slate-200 dark:border-slate-700 text-base"><span className="font-bold">Total</span><span className="font-bold text-brand-600">{money(total, form.currency)}</span></div>
+          <div className="flex justify-between py-1.5 text-sm"><span className="text-slate-500">{isGST ? 'Taxable Value' : 'Subtotal'}</span><span className="font-semibold">{money(t.taxable, cur, { decimals: isGST ? 0 : 2 })}</span></div>
+          {Number(form.discount) > 0 && <div className="flex justify-between py-1.5 text-sm"><span className="text-slate-500">Discount</span><span className="font-semibold">− {money(form.discount, cur)}</span></div>}
+          {isGST && !t.interState && <>
+            <div className="flex justify-between py-1.5 text-sm"><span className="text-slate-500">CGST {t.rate / 2}%</span><span className="font-semibold">{money(t.cgst, cur)}</span></div>
+            <div className="flex justify-between py-1.5 text-sm"><span className="text-slate-500">SGST {t.rate / 2}%</span><span className="font-semibold">{money(t.sgst, cur)}</span></div>
+          </>}
+          {isGST && t.interState && <div className="flex justify-between py-1.5 text-sm"><span className="text-slate-500">IGST {t.rate}%</span><span className="font-semibold">{money(t.igst, cur)}</span></div>}
+          <div className="flex justify-between py-2 mt-1 border-t border-slate-200 dark:border-slate-700 text-base"><span className="font-bold">Total</span><span className="font-bold text-brand-600">{money(t.total, cur, { decimals: isGST ? 0 : 2 })}</span></div>
+          {isGST && <p className="text-xs text-slate-400 mt-2">{t.interState ? 'Inter-state → IGST applied.' : 'Intra-state → CGST + SGST applied.'} Set the client's GST state code in the client profile to control this.</p>}
         </div>
       </div>
     </Modal>

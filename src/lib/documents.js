@@ -1,5 +1,11 @@
 // Professional document HTML templates (used for PDF + DOCX export & preview).
-import { money, fmtDate } from './format'
+import { money, fmtDate } from './format.js'
+
+// Duration/Qty may be free text (e.g. "Multiple Commissions"); treat non-numeric as 1.
+export const qtyNum = (q) => {
+  const n = Number(q)
+  return q === '' || q == null || isNaN(n) ? 1 : n
+}
 
 const styleBlock = `
   <style>
@@ -25,8 +31,15 @@ function header(company) {
       <div class="muted">${company?.address || ''}</div>
       <div class="muted">${[company?.email, company?.phone].filter(Boolean).join(' · ')}</div>
     </div>
-    <div class="muted right">${company?.website || ''}<br/>${company?.gst ? 'GSTIN: ' + company.gst : ''}</div>
+    <div class="muted right">${company?.website || ''}<br/>${(company?.gstin || company?.gst) ? 'GSTIN: ' + (company.gstin || company.gst) : ''}</div>
   </div>`
+}
+
+// Date formatted like the reference invoices: "09 April 2026"
+function longDate(d) {
+  const date = new Date(d)
+  if (isNaN(date)) return ''
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
 export function offerLetterHTML(emp, data, company) {
@@ -110,35 +123,153 @@ export function payslipHTML(emp, slip, company) {
   </div>`
 }
 
+// Resolve the GST/export split for an invoice, with safe fallbacks so previews
+// work even before the editor has stored the computed breakdown.
+export function computeInvoiceTax(inv, client, company) {
+  const type = inv.type || ((client?.country || '').toLowerCase() === 'india' ? 'gst' : 'export')
+  const subtotal = inv.subtotal ?? (inv.items || []).reduce((s, i) => s + qtyNum(i.qty) * Number(i.rate || 0), 0)
+  const discount = Number(inv.discount || 0)
+  const taxable = subtotal - discount
+  const rate = Number(inv.taxRate ?? company?.defaults?.gstRate ?? 18)
+
+  // State code drives intra (CGST+SGST) vs inter (IGST). Derive from GSTIN
+  // (first 2 digits) when not set explicitly.
+  const stateOf = (entity, gstin) => (entity?.stateCode || String(gstin || '').slice(0, 2)).trim()
+  let cgst = 0, sgst = 0, igst = 0
+  if (type === 'gst') {
+    const providerState = stateOf(company, company?.gstin || company?.gst)
+    const clientState = stateOf(client, client?.gst)
+    const interState = providerState && clientState && providerState !== clientState
+    if (inv.cgst != null || inv.sgst != null || inv.igst != null) {
+      cgst = Number(inv.cgst || 0); sgst = Number(inv.sgst || 0); igst = Number(inv.igst || 0)
+    } else if (interState) {
+      igst = Math.round((taxable * rate) / 100)
+    } else {
+      cgst = Math.round((taxable * rate) / 200)
+      sgst = Math.round((taxable * rate) / 200)
+    }
+  }
+  const taxAmount = cgst + sgst + igst
+  const total = inv.total ?? taxable + taxAmount
+  return { type, subtotal, discount, taxable, rate, cgst, sgst, igst, taxAmount, total, interState: igst > 0 }
+}
+
 export function invoiceHTML(inv, client, company) {
-  const cur = inv.currency || company?.currency || 'INR'
+  const t = computeInvoiceTax(inv, client, company)
+  const isGST = t.type === 'gst'
+  const cur = inv.currency || (isGST ? 'INR' : 'USD')
+  const bank = company?.bank || {}
+  const accent = '#1f47f5'
+
+  const field = (label, value) =>
+    value ? `<div style="margin-bottom:6px"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">${label}</div><div style="font-size:12px;color:#1e293b;font-weight:600">${value}</div></div>` : ''
+
   const rows = (inv.items || [])
     .map(
-      (it) =>
-        `<tr><td>${it.description || ''}</td><td class="right">${it.qty}</td><td class="right">${money(it.rate, cur)}</td><td class="right">${money(it.qty * it.rate, cur)}</td></tr>`
+      (it, i) => `<tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td><b>${it.description || ''}</b>${it.note ? `<div style="font-size:11px;color:#64748b">${it.note}</div>` : ''}</td>
+        <td style="text-align:center">${it.qty}</td>
+        <td style="text-align:right">${money(it.rate, cur, { decimals: isGST ? 0 : 2 })}</td>
+        <td style="text-align:right">${money(qtyNum(it.qty) * Number(it.rate || 0), cur, { decimals: isGST ? 0 : 2 })}</td>
+      </tr>`
     )
     .join('')
-  return `${styleBlock}<div class="doc">${header(company)}
-    <div style="display:flex;justify-content:space-between">
-      <div><span class="badge">INVOICE</span><h2>${inv.number}</h2>
-        <div class="muted">Issue: ${fmtDate(inv.date)} · Due: ${fmtDate(inv.dueDate)}</div></div>
-      <div class="right">
-        <div class="muted">Billed To</div>
-        <b>${client?.company || client?.name || '—'}</b><br/>
-        <span class="muted">${client?.address || ''}<br/>${client?.gst ? 'GSTIN: ' + client.gst : ''}</span>
+
+  const taxRows = isGST
+    ? `<tr><td colspan="4" style="text-align:right;border:none">Taxable Value</td><td style="text-align:right">${money(t.taxable, cur)}</td></tr>
+       ${t.interState
+        ? `<tr><td colspan="4" style="text-align:right;border:none">IGST ${t.rate}%</td><td style="text-align:right">${money(t.igst, cur)}</td></tr>`
+        : `<tr><td colspan="4" style="text-align:right;border:none">CGST ${t.rate / 2}%</td><td style="text-align:right">${money(t.cgst, cur)}</td></tr>
+           <tr><td colspan="4" style="text-align:right;border:none">SGST ${t.rate / 2}%</td><td style="text-align:right">${money(t.sgst, cur)}</td></tr>`}`
+    : ''
+
+  return `<style>
+    .inv{font-family:Inter,Arial,sans-serif;color:#1e293b;max-width:780px;margin:0 auto;font-size:12px}
+    .inv .title{font-size:20px;font-weight:800;color:${accent}}
+    .inv .tag{display:inline-block;margin-top:4px;background:${accent};color:#fff;padding:3px 12px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.5px}
+    .inv .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid ${accent};padding-bottom:14px;margin-bottom:16px}
+    .inv .grid2{display:flex;gap:24px;margin:14px 0}
+    .inv .box{flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px}
+    .inv .box h4{margin:0 0 8px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:${accent}}
+    .inv table.items{width:100%;border-collapse:collapse;margin-top:8px}
+    .inv table.items th{background:${accent};color:#fff;padding:8px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.4px;text-align:left}
+    .inv table.items td{border-bottom:1px solid #eef2f7;padding:9px 10px;vertical-align:top}
+    .inv table.tot{width:280px;margin-left:auto;border-collapse:collapse;margin-top:10px}
+    .inv table.tot td{padding:6px 10px;font-size:12px}
+    .inv .grand{background:#eef4ff;font-weight:800;font-size:14px}
+    .inv .meta div{margin-bottom:4px}
+    .inv .muted{color:#64748b}
+    .inv .sign{display:flex;justify-content:space-between;align-items:flex-end;margin-top:36px}
+  </style>
+  <div class="inv">
+    <div class="top">
+      <div>
+        ${company?.logo ? `<img src="${company.logo}" style="max-height:46px;margin-bottom:6px"/>` : ''}
+        <div class="title">${company?.name || 'Windesign'}</div>
+        <div class="muted" style="max-width:300px;margin-top:4px">${company?.address || ''}</div>
+        <div class="tag">${isGST ? 'GST INVOICE' : 'EXPORT INVOICE'}</div>
+      </div>
+      <div class="meta" style="text-align:right;font-size:12px">
+        <div style="font-size:15px;font-weight:800">Invoice for design services</div>
+        <div style="margin-top:6px"><span class="muted">Invoice No: </span><b>${inv.number}</b></div>
+        <div><span class="muted">Date: </span><b>${longDate(inv.date)}</b></div>
+        ${isGST && company?.cin ? `<div class="muted">CIN: ${company.cin}</div>` : ''}
+        <div class="muted">Reverse charge: ${inv.reverseCharge || 'No'}</div>
+        <div class="muted">Mode of Transport: ${inv.modeOfTransport || 'Digital'}</div>
       </div>
     </div>
-    <table>
-      <tr><th>Description</th><th class="right">Qty</th><th class="right">Rate</th><th class="right">Amount</th></tr>
-      ${rows}
-      <tr><td colspan="3" class="right">Subtotal</td><td class="right">${money(inv.subtotal, cur)}</td></tr>
-      ${inv.discount ? `<tr><td colspan="3" class="right">Discount</td><td class="right">- ${money(inv.discount, cur)}</td></tr>` : ''}
-      <tr><td colspan="3" class="right">Tax (${inv.taxRate || 0}%)</td><td class="right">${money(inv.taxAmount, cur)}</td></tr>
-      <tr class="total"><td colspan="3" class="right">Total</td><td class="right">${money(inv.total, cur)}</td></tr>
-      ${inv.amountPaid ? `<tr><td colspan="3" class="right">Paid</td><td class="right">${money(inv.amountPaid, cur)}</td></tr><tr class="total"><td colspan="3" class="right">Balance Due</td><td class="right">${money(inv.total - inv.amountPaid, cur)}</td></tr>` : ''}
+
+    <div class="grid2">
+      <div class="box">
+        <h4>Billed By (Provider)</h4>
+        ${field('Name', company?.name)}
+        ${field('Address', company?.address)}
+        ${field('GSTIN', company?.gstin || company?.gst)}
+        ${field('Email', company?.email)}
+        ${field('Mobile', company?.phone)}
+        ${field('Web', company?.website)}
+      </div>
+      <div class="box">
+        <h4>Billed To (Customer)</h4>
+        ${field('Name', client?.company || client?.name)}
+        ${field('Address', client?.address)}
+        ${field('Country', client?.country)}
+        ${isGST ? field('GSTIN', client?.gst) : field('Reg. / ROC / Tax No', client?.taxNumber)}
+        ${field('Email', client?.email)}
+      </div>
+    </div>
+
+    <table class="items">
+      <thead><tr><th style="width:34px;text-align:center">Sr</th><th>Service Name</th><th style="width:90px;text-align:center">Duration / Qty</th><th style="width:110px;text-align:right">Rate</th><th style="width:120px;text-align:right">Total</th></tr></thead>
+      <tbody>${rows}</tbody>
     </table>
-    ${inv.notes ? `<p><b>Notes:</b> ${inv.notes}</p>` : ''}
-    ${inv.terms ? `<p class="muted"><b>Terms:</b> ${inv.terms}</p>` : ''}
-    ${company?.bank ? `<p class="muted"><b>Bank Details:</b> ${company.bank}</p>` : ''}
+
+    <table class="tot">
+      ${isGST ? taxRows : `<tr><td style="text-align:right;border:none">Subtotal</td><td style="text-align:right">${money(t.subtotal, cur, { decimals: 2 })}</td></tr>`}
+      ${inv.discount ? `<tr><td style="text-align:right;border:none">Discount</td><td style="text-align:right">− ${money(inv.discount, cur)}</td></tr>` : ''}
+      <tr class="grand"><td>Total Amount${isGST ? '' : ` (${cur})`}</td><td style="text-align:right">${money(t.total, cur, { decimals: isGST ? 0 : 2 })}</td></tr>
+      ${inv.amountPaid ? `<tr><td style="text-align:right;border:none">Paid</td><td style="text-align:right">${money(inv.amountPaid, cur)}</td></tr><tr class="grand"><td>Balance Due</td><td style="text-align:right">${money(t.total - inv.amountPaid, cur)}</td></tr>` : ''}
+    </table>
+
+    <p class="muted" style="margin-top:14px">Declaration: The particulars given above are true and correct.</p>
+
+    <div class="grid2">
+      <div class="box">
+        <h4>Bank Details</h4>
+        <div class="muted" style="font-size:11px">${company?.defaults?.paymentTerms || 'Payment within 15 days via money transfer only to the following account'}</div>
+        <div style="margin-top:8px;font-size:12px;line-height:1.8">
+          <div><b>Name:</b> ${bank.accountName || company?.legalName || ''}</div>
+          <div><b>Account number:</b> ${bank.accountNumber || ''}</div>
+          <div><b>IFSC:</b> ${bank.ifsc || ''} &nbsp; <b>SWIFT:</b> ${bank.swift || ''}</div>
+          <div><b>Bank:</b> ${bank.bankName || ''}</div>
+          <div><b>Branch:</b> ${bank.branch || ''}</div>
+        </div>
+      </div>
+      <div class="box" style="display:flex;flex-direction:column;justify-content:flex-end">
+        ${inv.notes ? `<div class="muted" style="margin-bottom:auto"><b>Notes:</b> ${inv.notes}</div>` : ''}
+        <div style="text-align:right;margin-top:40px"><div style="border-top:1px solid #cbd5e1;padding-top:6px;display:inline-block">Authorised Signature</div></div>
+      </div>
+    </div>
   </div>`
 }

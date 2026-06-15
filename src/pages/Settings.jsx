@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const fileRef = useRef()
 
   const setC = (k, v) => setCompany((c) => ({ ...c, [k]: v }))
+  const setBank = (k, v) => setCompany((c) => ({ ...c, bank: { ...(c.bank || {}), [k]: v } }))
   const save = () => { updateSettings({ company, defaults }); setSaved(true); setTimeout(() => setSaved(false), 1800) }
 
   const onLogo = (e) => {
@@ -88,14 +89,26 @@ export default function SettingsPage() {
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Company Name"><Input value={company.name} onChange={(e) => setC('name', e.target.value)} /></Field>
+            <Field label="Legal Name (bank account)"><Input value={company.legalName || ''} onChange={(e) => setC('legalName', e.target.value)} /></Field>
             <Field label="Email"><Input value={company.email} onChange={(e) => setC('email', e.target.value)} /></Field>
             <Field label="Phone"><Input value={company.phone} onChange={(e) => setC('phone', e.target.value)} /></Field>
             <Field label="Website"><Input value={company.website} onChange={(e) => setC('website', e.target.value)} /></Field>
-            <Field label="GST / Tax Number"><Input value={company.gst} onChange={(e) => setC('gst', e.target.value)} /></Field>
             <Field label="Default Currency"><Select value={company.currency} onChange={(e) => setC('currency', e.target.value)}>{Object.keys(CURRENCIES).map((c) => <option key={c}>{c}</option>)}</Select></Field>
+            <Field label="GSTIN"><Input value={company.gstin || ''} onChange={(e) => setC('gstin', e.target.value)} placeholder="27AADCW8668C1ZZ" /></Field>
+            <Field label="CIN"><Input value={company.cin || ''} onChange={(e) => setC('cin', e.target.value)} /></Field>
+            <Field label="GST State Code"><Input value={company.stateCode || ''} onChange={(e) => setC('stateCode', e.target.value)} placeholder="27" /></Field>
           </div>
-          <Field label="Address" className="mt-4"><Textarea value={company.address} onChange={(e) => setC('address', e.target.value)} /></Field>
-          <Field label="Bank Details (shown on invoices)" className="mt-4"><Textarea value={company.bank} onChange={(e) => setC('bank', e.target.value)} /></Field>
+          <Field label="Registered Address" className="mt-4"><Textarea value={company.address} onChange={(e) => setC('address', e.target.value)} /></Field>
+
+          <h4 className="font-bold mt-6 mb-3 text-sm uppercase tracking-wide text-slate-500">Bank Details (shown on invoices)</h4>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Account Name"><Input value={company.bank?.accountName || ''} onChange={(e) => setBank('accountName', e.target.value)} /></Field>
+            <Field label="Account Number"><Input value={company.bank?.accountNumber || ''} onChange={(e) => setBank('accountNumber', e.target.value)} /></Field>
+            <Field label="IFSC"><Input value={company.bank?.ifsc || ''} onChange={(e) => setBank('ifsc', e.target.value)} /></Field>
+            <Field label="SWIFT"><Input value={company.bank?.swift || ''} onChange={(e) => setBank('swift', e.target.value)} /></Field>
+            <Field label="Bank Name"><Input value={company.bank?.bankName || ''} onChange={(e) => setBank('bankName', e.target.value)} /></Field>
+            <Field label="Branch"><Input value={company.bank?.branch || ''} onChange={(e) => setBank('branch', e.target.value)} /></Field>
+          </div>
         </Card>
       )}
 

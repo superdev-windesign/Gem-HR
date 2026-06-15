@@ -214,14 +214,22 @@ export function StoreProvider({ children }) {
   }, [])
 
   // ---- Invoices --------------------------------------------------------
-  const nextInvoiceNumber = useCallback(() => {
-    const prefix = db.settings.invoicePrefix || 'INV-'
-    const nums = db.invoices
-      .map((i) => parseInt(String(i.number).replace(prefix, '').replace(/\D/g, ''), 10))
-      .filter((n) => !isNaN(n))
-    const next = (nums.length ? Math.max(...nums) : 0) + 1
-    return prefix + String(next).padStart(3, '0')
-  }, [db.invoices, db.settings])
+  // Numbers follow the reference format: IND2601 (Indian) / INT2601 (export),
+  // i.e. <prefix><FY year code><running sequence>, sequenced per prefix.
+  const nextInvoiceNumber = useCallback(
+    (type = 'gst') => {
+      const cfg = db.settings.invoice || { yearCode: '26', indianPrefix: 'IND', exportPrefix: 'INT' }
+      const prefix = type === 'export' ? cfg.exportPrefix : cfg.indianPrefix
+      const head = `${prefix}${cfg.yearCode}`
+      const seqs = db.invoices
+        .filter((i) => String(i.number).startsWith(prefix))
+        .map((i) => parseInt(String(i.number).slice(prefix.length + String(cfg.yearCode).length), 10))
+        .filter((n) => !isNaN(n))
+      const next = (seqs.length ? Math.max(...seqs) : 0) + 1
+      return head + String(next).padStart(2, '0')
+    },
+    [db.invoices, db.settings]
+  )
 
   const saveInvoice = useCallback(
     (inv) => {

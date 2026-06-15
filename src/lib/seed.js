@@ -129,23 +129,39 @@ export function buildSeed() {
 
   const settings = {
     company: {
-      name: 'Windesign Studio',
-      address: 'WeWork Galaxy, Residency Road, Bengaluru 560025',
-      email: 'hello@windesign.in',
-      phone: '+91 80 1234 5678',
-      website: 'www.windesign.in',
-      gst: '29WINDS1234F1Z9',
+      name: 'Windesign Labs (OPC) Pvt. Ltd.',
+      legalName: 'WINDESIGN LABS (OPC) PRIVATE LIMITED',
+      address: 'Flat No 808 Rachana, Ashwini Apt, Jagdish Nagar, Katol Road, Nagpur 440013, Maharashtra',
+      email: 'jitu@windesign.io',
+      phone: '+91 97306 27087',
+      website: 'windesign.io',
+      gstin: '27AADCW8668C1ZZ',
+      cin: 'U62010MH2024OPC427928',
+      stateCode: '27',
+      country: 'India',
       currency: 'INR',
-      bank: 'HDFC Bank · A/C 50100123456789 · IFSC HDFC0001234',
+      bank: {
+        accountName: 'WINDESIGN LABS (OPC) PRIVATE LIMITED',
+        accountNumber: '87306270872',
+        ifsc: 'IDFB0042504',
+        swift: 'IDFBINBBMUM',
+        bankName: 'IDFC FIRST',
+        branch: 'NAGPUR - BYRAMJI TOWN BRANCH',
+      },
       logo: '',
     },
     defaults: {
       probation: '3 months',
       notice: '30 days',
-      taxRate: 18,
+      gstRate: 18,
+      paymentTerms: 'Payment within 15 days via money transfer only to the following account',
       salaryStructure: { basicPct: 40, hraPct: 50 },
     },
-    invoicePrefix: 'INV-2026-',
+    invoice: {
+      yearCode: '26', // FY 2026-27 → "26"
+      indianPrefix: 'IND',
+      exportPrefix: 'INT',
+    },
     expenseCategories: ['Office', 'Software & SaaS', 'Employee', 'Travel', 'Marketing', 'Legal & Accounting', 'Equipment', 'Miscellaneous'],
   }
 

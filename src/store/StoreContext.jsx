@@ -153,7 +153,13 @@ export function StoreProvider({ children }) {
       if (!emp) return null
       const c = emp.compensation
       const earnings = { basic: c.basic, hra: c.hra, special: c.special, other: c.other, bonus: c.bonus }
-      const deductions = { pf: c.pf, esic: c.esic, tax: c.tax, other: 0 }
+      // Respect per-employee PF / ESIC / TDS enable toggles (default enabled).
+      const deductions = {
+        pf: c.pfEnabled === false ? 0 : c.pf,
+        esic: c.esicEnabled === false ? 0 : c.esic,
+        tax: c.taxEnabled === false ? 0 : c.tax,
+        other: 0,
+      }
       const gross = Object.values(earnings).reduce((a, b) => a + b, 0)
       const totalDeductions = Object.values(deductions).reduce((a, b) => a + b, 0)
       const net = gross - totalDeductions

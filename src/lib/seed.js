@@ -140,6 +140,8 @@ export function buildSeed() {
       stateCode: '27',
       country: 'India',
       currency: 'INR',
+      signatoryName: 'Jitendra Raut',
+      signature: '', // base64 data URL, uploaded in Settings → Company
       bank: {
         accountName: 'WINDESIGN LABS (OPC) PRIVATE LIMITED',
         accountNumber: '87306270872',

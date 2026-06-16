@@ -31,13 +31,16 @@ export default function SettingsPage() {
   const setBank = (k, v) => setCompany((c) => ({ ...c, bank: { ...(c.bank || {}), [k]: v } }))
   const save = () => { updateSettings({ company, defaults }); setSaved(true); setTimeout(() => setSaved(false), 1800) }
 
-  const onLogo = (e) => {
+  const readImage = (e, key) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => setC('logo', reader.result)
+    reader.onload = () => setC(key, reader.result)
     reader.readAsDataURL(file)
+    e.target.value = ''
   }
+  const onLogo = (e) => readImage(e, 'logo')
+  const onSignature = (e) => readImage(e, 'signature')
 
   const backup = () => exportJSON({ ...db, _exportedAt: new Date().toISOString(), _app: 'Windesign OS' }, `windesign-backup-${new Date().toISOString().slice(0, 10)}.json`)
 
@@ -87,6 +90,20 @@ export default function SettingsPage() {
             <label className="btn-outline cursor-pointer"><Upload size={16} /> Upload Logo<input type="file" accept="image/*" className="hidden" onChange={onLogo} /></label>
             {company.logo && <button className="btn-ghost text-rose-500" onClick={() => setC('logo', '')}><Trash2 size={15} /></button>}
           </div>
+
+          <div className="flex items-center gap-4 mb-4 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+            <div className="h-16 w-44 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 grid place-items-center overflow-hidden bg-white">
+              {company.signature ? <img src={company.signature} alt="signature" className="h-full w-full object-contain" /> : <span className="text-xs text-slate-400">No signature</span>}
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-sm">Authorised Signature</p>
+              <p className="text-xs text-slate-400 mb-2">Appears on offer, appointment, promotion letters, payslips & invoices.</p>
+              <div className="flex gap-2">
+                <label className="btn-outline cursor-pointer"><Upload size={16} /> Upload Signature<input type="file" accept="image/*" className="hidden" onChange={onSignature} /></label>
+                {company.signature && <button className="btn-ghost text-rose-500" onClick={() => setC('signature', '')}><Trash2 size={15} /> Remove</button>}
+              </div>
+            </div>
+          </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Company Name"><Input value={company.name} onChange={(e) => setC('name', e.target.value)} /></Field>
             <Field label="Legal Name (bank account)"><Input value={company.legalName || ''} onChange={(e) => setC('legalName', e.target.value)} /></Field>
@@ -97,6 +114,7 @@ export default function SettingsPage() {
             <Field label="GSTIN"><Input value={company.gstin || ''} onChange={(e) => setC('gstin', e.target.value)} placeholder="27AADCW8668C1ZZ" /></Field>
             <Field label="CIN"><Input value={company.cin || ''} onChange={(e) => setC('cin', e.target.value)} /></Field>
             <Field label="GST State Code"><Input value={company.stateCode || ''} onChange={(e) => setC('stateCode', e.target.value)} placeholder="27" /></Field>
+            <Field label="Signatory Name"><Input value={company.signatoryName || ''} onChange={(e) => setC('signatoryName', e.target.value)} placeholder="Jitendra Raut" /></Field>
           </div>
           <Field label="Registered Address" className="mt-4"><Textarea value={company.address} onChange={(e) => setC('address', e.target.value)} /></Field>
 

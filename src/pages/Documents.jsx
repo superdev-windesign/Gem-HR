@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { FileText, Search, Download, FileSignature, Award, Receipt, FileCheck, ScrollText } from 'lucide-react'
+import { FileText, Download, FileSignature, Award, Receipt, FileCheck, ScrollText, Eye } from 'lucide-react'
 import { useStore } from '../store/StoreContext'
-import { PageHeader, Card, SearchInput, Select, Badge, EmptyState } from '../components/ui'
+import { PageHeader, Card, SearchInput, Select, Badge, EmptyState, Modal } from '../components/ui'
 import { fmtDateTime } from '../lib/format'
+import { invoiceHTML, payslipHTML } from '../lib/documents'
+import { exportPDF, exportDOC } from '../lib/export'
 
 const TYPE_ICON = {
   'Offer Letter': FileSignature, 'Appointment Letter': FileCheck, 'Promotion Letter': Award,
@@ -12,25 +13,31 @@ const TYPE_ICON = {
 const TYPES = ['All', 'Offer Letter', 'Appointment Letter', 'Promotion Letter', 'Payslip', 'Invoice', 'Contract', 'Certificate']
 
 export default function Documents() {
-  const { documents, employees, invoices, payslips, clients } = useStore()
+  const { documents, employees, invoices, payslips, clients, settings } = useStore()
   const [q, setQ] = useState('')
   const [type, setType] = useState('All')
+  const [preview, setPreview] = useState(null) // { name, html }
 
-  // Aggregate all document-like records into one repository view
+  const company = settings.company
+
+  // Aggregate every document-like record into one repository, each with its renderable HTML.
   const all = useMemo(() => {
-    const empName = (id) => employees.find((e) => e.id === id)?.name
-    const list = documents.map((d) => ({ id: d.id, type: d.type, name: d.name || d.type, owner: empName(d.empId) || '—', date: d.date, format: d.format || 'PDF' }))
+    const emp = (id) => employees.find((e) => e.id === id)
+    const list = []
+
+    documents.forEach((d) =>
+      list.push({ id: d.id, type: d.type, name: d.name || d.type, owner: emp(d.empId)?.name || '—', date: d.date, format: d.format || 'PDF', html: d.html || null })
+    )
     invoices.forEach((i) => {
       const cl = clients.find((c) => c.id === i.clientId)
-      list.push({ id: 'inv-' + i.id, type: 'Invoice', name: i.number, owner: cl?.company || '—', date: i.date, format: 'PDF', to: '/invoices' })
+      list.push({ id: 'inv-' + i.id, type: 'Invoice', name: i.number, owner: cl?.company || '—', date: i.date, format: 'PDF', html: invoiceHTML(i, cl, company) })
     })
     payslips.forEach((p) => {
-      if (!documents.some((d) => d.type === 'Payslip' && d.empId === p.empId)) {
-        list.push({ id: 'ps-' + p.id, type: 'Payslip', name: `Payslip — ${p.monthLabel}`, owner: empName(p.empId) || '—', date: p.payDate, format: 'PDF' })
-      }
+      const e = emp(p.empId)
+      list.push({ id: 'ps-' + p.id, type: 'Payslip', name: `${e?.name || 'Payslip'} — ${p.monthLabel}`, owner: e?.name || '—', date: p.payDate, format: 'PDF', html: e ? payslipHTML(e, p, company) : null })
     })
     return list.sort((a, b) => new Date(b.date) - new Date(a.date))
-  }, [documents, invoices, payslips, employees, clients])
+  }, [documents, invoices, payslips, employees, clients, company])
 
   const filtered = all.filter((d) => {
     if (type !== 'All' && d.type !== type) return false
@@ -39,6 +46,7 @@ export default function Documents() {
   })
 
   const counts = TYPES.slice(1).map((t) => ({ type: t, n: all.filter((d) => d.type === t).length }))
+  const fileBase = (name) => name.replace(/[^a-z0-9]+/gi, '-')
 
   return (
     <div>
@@ -71,7 +79,7 @@ export default function Documents() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
-                <tr><th className="th">Document</th><th className="th">Type</th><th className="th">Owner</th><th className="th">Format</th><th className="th">Date</th><th className="th"></th></tr>
+                <tr><th className="th">Document</th><th className="th">Type</th><th className="th">Owner</th><th className="th">Format</th><th className="th">Date</th><th className="th text-right">Actions</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filtered.map((d) => {
@@ -83,7 +91,15 @@ export default function Documents() {
                       <td className="td">{d.owner}</td>
                       <td className="td text-slate-400">{d.format}</td>
                       <td className="td text-slate-400">{fmtDateTime(d.date)}</td>
-                      <td className="td text-right">{d.to ? <Link to={d.to} className="btn-ghost !p-1.5"><Download size={16} /></Link> : <span className="text-xs text-slate-400">stored</span>}</td>
+                      <td className="td text-right">
+                        {d.html ? (
+                          <div className="flex justify-end gap-1">
+                            <button className="btn-ghost !p-1.5" title="View" onClick={() => setPreview({ name: d.name, html: d.html })}><Eye size={16} /></button>
+                            <button className="btn-ghost !p-1.5" title="Download PDF" onClick={() => exportPDF(d.html, d.name)}><Download size={16} /></button>
+                            <button className="btn-ghost !p-1.5 text-xs font-bold" title="Save DOCX" onClick={() => exportDOC(d.html, fileBase(d.name) + '.doc')}>DOC</button>
+                          </div>
+                        ) : <span className="text-xs text-slate-400">no preview</span>}
+                      </td>
                     </tr>
                   )
                 })}
@@ -92,6 +108,14 @@ export default function Documents() {
           </div>
         </div>
       )}
+
+      <Modal open={!!preview} onClose={() => setPreview(null)} title={preview?.name || 'Document'} size="lg"
+        footer={preview && <>
+          <button className="btn-outline" onClick={() => exportDOC(preview.html, fileBase(preview.name) + '.doc')}>Save DOCX</button>
+          <button className="btn-primary" onClick={() => exportPDF(preview.html, preview.name)}><Download size={15} /> Download PDF</button>
+        </>}>
+        {preview && <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white p-4 overflow-x-auto" dangerouslySetInnerHTML={{ __html: preview.html }} />}
+      </Modal>
     </div>
   )
 }

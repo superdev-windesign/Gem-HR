@@ -22,11 +22,15 @@ function InfoRow({ icon: Icon, label, value }) {
   )
 }
 
-function SalaryRow({ label, value, deduction }) {
+function SalaryRow({ label, value, deduction, disabled }) {
   return (
     <div className="flex justify-between py-1.5 text-sm">
       <span className="text-slate-500 dark:text-slate-400">{label}</span>
-      <span className={`font-semibold ${deduction ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200'}`}>{deduction ? '− ' : ''}{money(value)}</span>
+      {disabled ? (
+        <span className="font-semibold text-slate-400">Disabled</span>
+      ) : (
+        <span className={`font-semibold ${deduction ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200'}`}>{deduction ? '− ' : ''}{money(value)}</span>
+      )}
     </div>
   )
 }
@@ -47,7 +51,7 @@ function OfferModal({ emp, open, onClose }) {
   const build = () => offerLetterHTML(emp, { ...d, salary: { basic: +d.basic, hra: +d.hra, special: +d.special, other: +d.other }, monthly, annual }, settings.company)
   const finalize = (fn, ext) => {
     fn()
-    addDocument({ type: 'Offer Letter', name: `${emp.name} — Offer Letter`, empId: emp.id, category: 'Employee', timelineType: 'Offer Letter Generated', format: ext })
+    addDocument({ type: 'Offer Letter', name: `${emp.name} — Offer Letter`, empId: emp.id, category: 'Employee', timelineType: 'Offer Letter Generated', format: ext, html: build() })
     onClose()
   }
   return (
@@ -88,7 +92,7 @@ function AppointmentModal({ emp, open, onClose }) {
   const [d, setD] = useState({ role: emp.designation, department: emp.department, joiningDate: emp.joiningDate, location: emp.location, manager: emp.manager })
   const set = (k, v) => setD((p) => ({ ...p, [k]: v }))
   const build = () => appointmentLetterHTML(emp, d, settings.company)
-  const finalize = (fn, ext) => { fn(); addDocument({ type: 'Appointment Letter', name: `${emp.name} — Appointment Letter`, empId: emp.id, category: 'Employee', timelineType: 'Appointment Letter Generated', format: ext }); onClose() }
+  const finalize = (fn, ext) => { fn(); addDocument({ type: 'Appointment Letter', name: `${emp.name} — Appointment Letter`, empId: emp.id, category: 'Employee', timelineType: 'Appointment Letter Generated', format: ext, html: build() }); onClose() }
   return (
     <Modal open={open} onClose={onClose} title="Generate Appointment Letter" size="lg"
       footer={<>
@@ -121,8 +125,9 @@ function PromoteModal({ emp, open, onClose }) {
     const promo = { ...d, fromSalary: +d.fromSalary, toSalary: +d.toSalary }
     promoteEmployee(emp.id, promo)
     if (alsoLetter) {
-      exportPDF(promotionLetterHTML(emp, promo, settings.company), 'Promotion Letter')
-      addDocument({ type: 'Promotion Letter', name: `${emp.name} — Promotion Letter`, empId: emp.id, category: 'Employee', format: 'PDF' })
+      const html = promotionLetterHTML(emp, promo, settings.company)
+      exportPDF(html, 'Promotion Letter')
+      addDocument({ type: 'Promotion Letter', name: `${emp.name} — Promotion Letter`, empId: emp.id, category: 'Employee', format: 'PDF', html })
     }
     onClose()
   }
@@ -166,6 +171,87 @@ function PayslipModal({ emp, open, onClose }) {
         <Field label="Pay Date"><Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} /></Field>
       </div>
       <p className="text-xs text-slate-400 mt-4">Components are computed from the saved salary structure. The payslip is stored in the employee profile and timeline.</p>
+    </Modal>
+  )
+}
+
+// ---------- Edit Employee Modal (Personal / Professional / Compensation) ----------
+const DEPTS = ['Leadership', 'Design', 'Engineering', 'Marketing', 'People', 'Finance', 'Operations']
+const ETYPES = ['Full Time', 'Intern', 'Freelancer', 'Contractor']
+
+function Toggle({ on, onChange, label }) {
+  return (
+    <button type="button" onClick={() => onChange(!on)}
+      className={`flex items-center gap-2 text-sm font-medium ${on ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400'}`}>
+      <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${on ? 'bg-brand-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+        <span className={`inline-block h-4 w-4 rounded-full bg-white transition ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
+      </span>
+      {label}
+    </button>
+  )
+}
+
+function EditEmployeeModal({ emp, open, onClose }) {
+  const { updateEmployee } = useStore()
+  const [f, setF] = useState(emp)
+  useEffect(() => { setF(emp) }, [emp, open])
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }))
+  const c = f.compensation || {}
+  const setC = (k, v) => setF((p) => ({ ...p, compensation: { ...p.compensation, [k]: v } }))
+  const enabled = (k) => c[k] !== false
+
+  const save = () => {
+    const comp = { ...c, ctc: +c.ctc, basic: +c.basic, hra: +c.hra, special: +c.special, other: +c.other, bonus: +c.bonus, pf: +c.pf, esic: +c.esic, tax: +c.tax }
+    updateEmployee(emp.id, {
+      name: f.name, email: f.email, mobile: f.mobile, address: f.address, dob: f.dob, emergencyContact: f.emergencyContact,
+      designation: f.designation, department: f.department, joiningDate: f.joiningDate, manager: f.manager,
+      location: f.location, type: f.type, status: f.status, compensation: comp,
+    })
+    onClose()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={`Edit — ${emp.name}`} size="lg"
+      footer={<><button className="btn-outline" onClick={onClose}>Cancel</button><button className="btn-primary" onClick={save}>Save Changes</button></>}>
+      <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500 mb-3">Personal</h4>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="Full Name"><Input value={f.name || ''} onChange={(e) => set('name', e.target.value)} /></Field>
+        <Field label="Email"><Input value={f.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
+        <Field label="Mobile"><Input value={f.mobile || ''} onChange={(e) => set('mobile', e.target.value)} /></Field>
+        <Field label="Date of Birth"><Input type="date" value={f.dob || ''} onChange={(e) => set('dob', e.target.value)} /></Field>
+        <Field label="Address"><Input value={f.address || ''} onChange={(e) => set('address', e.target.value)} /></Field>
+        <Field label="Emergency Contact"><Input value={f.emergencyContact || ''} onChange={(e) => set('emergencyContact', e.target.value)} /></Field>
+      </div>
+
+      <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500 mt-6 mb-3">Professional</h4>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="Designation"><Input value={f.designation || ''} onChange={(e) => set('designation', e.target.value)} /></Field>
+        <Field label="Department"><Select value={f.department} onChange={(e) => set('department', e.target.value)}>{DEPTS.map((d) => <option key={d}>{d}</option>)}</Select></Field>
+        <Field label="Joining Date"><Input type="date" value={f.joiningDate || ''} onChange={(e) => set('joiningDate', e.target.value)} /></Field>
+        <Field label="Reporting Manager"><Input value={f.manager || ''} onChange={(e) => set('manager', e.target.value)} /></Field>
+        <Field label="Work Location"><Input value={f.location || ''} onChange={(e) => set('location', e.target.value)} /></Field>
+        <Field label="Employment Type"><Select value={f.type} onChange={(e) => set('type', e.target.value)}>{ETYPES.map((t) => <option key={t}>{t}</option>)}</Select></Field>
+        <Field label="Status"><Select value={f.status} onChange={(e) => set('status', e.target.value)}><option>Active</option><option>Resigned</option><option>Inactive</option></Select></Field>
+      </div>
+
+      <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500 mt-6 mb-3">Compensation</h4>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <Field label="Annual CTC"><Input type="number" value={c.ctc} onChange={(e) => setC('ctc', e.target.value)} /></Field>
+        <Field label="Basic"><Input type="number" value={c.basic} onChange={(e) => setC('basic', e.target.value)} /></Field>
+        <Field label="HRA"><Input type="number" value={c.hra} onChange={(e) => setC('hra', e.target.value)} /></Field>
+        <Field label="Special Allowance"><Input type="number" value={c.special} onChange={(e) => setC('special', e.target.value)} /></Field>
+        <Field label="Other Allowances"><Input type="number" value={c.other} onChange={(e) => setC('other', e.target.value)} /></Field>
+        <Field label="Bonus"><Input type="number" value={c.bonus} onChange={(e) => setC('bonus', e.target.value)} /></Field>
+      </div>
+      <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+        <p className="label">Statutory Deductions — enable / disable</p>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div className="space-y-2"><Toggle on={enabled('pfEnabled')} onChange={(v) => setC('pfEnabled', v)} label="PF" /><Input type="number" value={c.pf} disabled={!enabled('pfEnabled')} onChange={(e) => setC('pf', e.target.value)} /></div>
+          <div className="space-y-2"><Toggle on={enabled('esicEnabled')} onChange={(v) => setC('esicEnabled', v)} label="ESIC" /><Input type="number" value={c.esic} disabled={!enabled('esicEnabled')} onChange={(e) => setC('esic', e.target.value)} /></div>
+          <div className="space-y-2"><Toggle on={enabled('taxEnabled')} onChange={(v) => setC('taxEnabled', v)} label="Tax (TDS)" /><Input type="number" value={c.tax} disabled={!enabled('taxEnabled')} onChange={(e) => setC('tax', e.target.value)} /></div>
+        </div>
+        <p className="text-xs text-slate-400 mt-3">Disabled deductions are excluded from payslips (shown as ₹0).</p>
+      </div>
     </Modal>
   )
 }
@@ -216,6 +302,7 @@ export default function EmployeeProfile() {
             <p className="text-slate-500 dark:text-slate-400">{emp.designation} · {emp.department} · {emp.empId}</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button className="btn-outline" onClick={() => setModal('edit')}><Edit3 size={16} /> Edit</button>
             <button className="btn-outline" onClick={() => setModal('offer')}><FileSignature size={16} /> Offer Letter</button>
             <button className="btn-outline" onClick={() => setModal('appointment')}><FilePlus size={16} /> Appointment</button>
             <button className="btn-outline" onClick={() => setModal('promote')}><Award size={16} /> Promote</button>
@@ -260,9 +347,9 @@ export default function EmployeeProfile() {
             <SalaryRow label="Other Allowances" value={c.other} />
             <SalaryRow label="Bonus" value={c.bonus} />
             <div className="my-2 border-t border-slate-100 dark:border-slate-800" />
-            <SalaryRow label="PF" value={c.pf} deduction />
-            <SalaryRow label="ESIC" value={c.esic} deduction />
-            <SalaryRow label="Tax (TDS)" value={c.tax} deduction />
+            <SalaryRow label="PF" value={c.pf} deduction disabled={c.pfEnabled === false} />
+            <SalaryRow label="ESIC" value={c.esic} deduction disabled={c.esicEnabled === false} />
+            <SalaryRow label="Tax (TDS)" value={c.tax} deduction disabled={c.taxEnabled === false} />
           </Card>
         </div>
       )}
@@ -326,6 +413,7 @@ export default function EmployeeProfile() {
         <button className="btn-ghost text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20" onClick={remove}><Trash2 size={16} /> Delete Employee</button>
       </div>
 
+      <EditEmployeeModal emp={emp} open={modal === 'edit'} onClose={() => setModal(null)} />
       <OfferModal emp={emp} open={modal === 'offer'} onClose={() => setModal(null)} />
       <AppointmentModal emp={emp} open={modal === 'appointment'} onClose={() => setModal(null)} />
       <PromoteModal emp={emp} open={modal === 'promote'} onClose={() => setModal(null)} />

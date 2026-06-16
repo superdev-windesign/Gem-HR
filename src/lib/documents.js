@@ -35,6 +35,15 @@ function header(company) {
   </div>`
 }
 
+// Authorised-signatory block: signature image (if uploaded) + name/title.
+function signatureMark(company, title = 'Authorised Signatory') {
+  const img = company?.signature
+    ? `<img src="${company.signature}" alt="signature" style="height:54px;display:block;margin-bottom:2px"/>`
+    : '<div style="height:46px;border-bottom:1px solid #94a3b8;width:180px;margin-bottom:6px"></div>'
+  const name = company?.signatoryName ? `<b>${company.signatoryName}</b><br/>` : ''
+  return `${img}${name}<span style="font-size:12px;color:#64748b">${title}${company?.name ? ', ' + company.name : ''}</span>`
+}
+
 // Date formatted like the reference invoices: "09 April 2026"
 function longDate(d) {
   const date = new Date(d)
@@ -60,7 +69,7 @@ export function offerLetterHTML(emp, data, company) {
       <tr class="total"><td>Total CTC</td><td class="right">${money(data.monthly, company?.currency)}</td><td class="right">${money(data.annual, company?.currency)}</td></tr>
     </table>
     <p>We look forward to welcoming you to the team. Please sign and return a copy of this letter as a token of your acceptance.</p>
-    <div class="sign"><div><b>____________________</b><br/>For ${company?.name || 'Windesign'}</div><div><b>____________________</b><br/>${data.candidateName || emp.name}</div></div>
+    <div class="sign"><div>${signatureMark(company)}</div><div><div style="height:46px;border-bottom:1px solid #94a3b8;width:180px;margin-bottom:6px"></div><span style="font-size:12px;color:#64748b">${data.candidateName || emp.name} (Candidate)</span></div></div>
   </div>`
 }
 
@@ -77,7 +86,7 @@ export function appointmentLetterHTML(emp, data, company) {
       <tr><th>Annual CTC</th><td colspan="3">${money(emp.compensation?.ctc, company?.currency)}</td></tr>
     </table>
     <p>Your employment will be governed by the company's policies as amended from time to time. We welcome you aboard and wish you a long and successful career with us.</p>
-    <div class="sign"><div><b>____________________</b><br/>Authorised Signatory<br/>${company?.name || 'Windesign'}</div><div><b>____________________</b><br/>${emp.name}</div></div>
+    <div class="sign"><div>${signatureMark(company)}</div><div><div style="height:46px;border-bottom:1px solid #94a3b8;width:180px;margin-bottom:6px"></div><span style="font-size:12px;color:#64748b">${emp.name} (Employee)</span></div></div>
   </div>`
 }
 
@@ -96,7 +105,7 @@ export function promotionLetterHTML(emp, promo, company) {
     </table>
     ${promo.notes ? `<p>${promo.notes}</p>` : ''}
     <p>Congratulations on your well-deserved promotion. We look forward to your continued success.</p>
-    <div class="sign"><div><b>____________________</b><br/>For ${company?.name || 'Windesign'}</div><div></div></div>
+    <div class="sign"><div>${signatureMark(company)}</div><div></div></div>
   </div>`
 }
 
@@ -119,7 +128,7 @@ export function payslipHTML(emp, slip, company) {
       <tr class="total"><td>Gross Earnings</td><td class="right">${money(slip.gross, company?.currency)}</td><td>Total Deductions</td><td class="right">${money(slip.totalDeductions, company?.currency)}</td></tr>
     </table>
     <table><tr class="total"><td>Net Pay</td><td class="right">${money(slip.net, company?.currency)}</td></tr></table>
-    <p class="muted">This is a system-generated payslip and does not require a signature.</p>
+    <div class="sign"><div></div><div style="text-align:right">${signatureMark(company)}</div></div>
   </div>`
 }
 
@@ -268,7 +277,7 @@ export function invoiceHTML(inv, client, company) {
       </div>
       <div class="box" style="display:flex;flex-direction:column;justify-content:flex-end">
         ${inv.notes ? `<div class="muted" style="margin-bottom:auto"><b>Notes:</b> ${inv.notes}</div>` : ''}
-        <div style="text-align:right;margin-top:40px"><div style="border-top:1px solid #cbd5e1;padding-top:6px;display:inline-block">Authorised Signature</div></div>
+        <div style="text-align:right;margin-top:20px">${signatureMark(company)}</div>
       </div>
     </div>
   </div>`

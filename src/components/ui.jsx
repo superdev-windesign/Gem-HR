@@ -159,6 +159,56 @@ export function SearchInput({ value, onChange, placeholder = 'Search…' }) {
   )
 }
 
+export function Skeleton({ className = '' }) {
+  return <div className={`animate-pulse rounded-md bg-slate-200/70 dark:bg-slate-700/40 ${className}`} />
+}
+
+const rng = (n) => Array.from({ length: n })
+
+// Page-level loading placeholder that mirrors each page's structure.
+export function PageSkeleton({ variant = 'table' }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-11 w-11 rounded-xl" />
+          <div className="space-y-2"><Skeleton className="h-5 w-52" /><Skeleton className="h-3 w-32" /></div>
+        </div>
+        <div className="flex gap-2"><Skeleton className="h-9 w-24 rounded-xl" /><Skeleton className="h-9 w-32 rounded-xl" /></div>
+      </div>
+
+      {variant === 'dashboard' && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">{rng(4).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">{rng(4).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+          <div className="grid lg:grid-cols-2 gap-4">{rng(2).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)}</div>
+        </>
+      )}
+
+      {variant === 'stats' && <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">{rng(4).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>}
+
+      {(variant === 'table' || variant === 'stats') && (
+        <>
+          <Skeleton className="h-16 rounded-2xl mb-4" />
+          <div className="card !p-0 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+            {rng(7).map((_, i) => <div key={i} className="p-4"><Skeleton className="h-6 w-full" /></div>)}
+          </div>
+        </>
+      )}
+
+      {variant === 'cards' && <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{rng(6).map((_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}</div>}
+
+      {variant === 'profile' && (
+        <>
+          <Skeleton className="h-28 rounded-2xl mb-4" />
+          <Skeleton className="h-10 w-80 rounded-xl mb-4" />
+          <div className="grid lg:grid-cols-3 gap-4">{rng(3).map((_, i) => <Skeleton key={i} className="h-72 rounded-2xl" />)}</div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export function EmptyState({ icon: Icon = Inbox, title, hint, action }) {
   return (
     <div className="flex flex-col items-center justify-center text-center py-16 px-4">

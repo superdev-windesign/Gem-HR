@@ -315,6 +315,7 @@ export function StoreProvider({ children }) {
     db,
     ...db,
     status,
+    loading: status === 'connecting',
     finance,
     log,
     addTimeline,

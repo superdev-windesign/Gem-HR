@@ -191,7 +191,7 @@ function Toggle({ on, onChange, label }) {
   )
 }
 
-function EditEmployeeModal({ emp, open, onClose }) {
+function EditEmployeeModal({ emp, open, onClose, section = 'all' }) {
   const { updateEmployee } = useStore()
   const [f, setF] = useState(emp)
   useEffect(() => { setF(emp) }, [emp, open])
@@ -199,6 +199,7 @@ function EditEmployeeModal({ emp, open, onClose }) {
   const c = f.compensation || {}
   const setC = (k, v) => setF((p) => ({ ...p, compensation: { ...p.compensation, [k]: v } }))
   const enabled = (k) => c[k] !== false
+  const show = (s) => section === 'all' || section === s
 
   const save = () => {
     const comp = { ...c, ctc: +c.ctc, basic: +c.basic, hra: +c.hra, special: +c.special, other: +c.other, bonus: +c.bonus, pf: +c.pf, esic: +c.esic, tax: +c.tax }
@@ -209,10 +210,12 @@ function EditEmployeeModal({ emp, open, onClose }) {
     })
     onClose()
   }
+  const titles = { all: 'Edit', personal: 'Edit Personal', professional: 'Edit Professional', compensation: 'Edit Compensation' }
 
   return (
-    <Modal open={open} onClose={onClose} title={`Edit — ${emp.name}`} size="lg"
+    <Modal open={open} onClose={onClose} title={`${titles[section]} — ${emp.name}`} size="lg"
       footer={<><button className="btn-outline" onClick={onClose}>Cancel</button><button className="btn-primary" onClick={save}>Save Changes</button></>}>
+      {show('personal') && <>
       <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500 mb-3">Personal</h4>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Full Name"><Input value={f.name || ''} onChange={(e) => set('name', e.target.value)} /></Field>
@@ -222,7 +225,9 @@ function EditEmployeeModal({ emp, open, onClose }) {
         <Field label="Address"><Input value={f.address || ''} onChange={(e) => set('address', e.target.value)} /></Field>
         <Field label="Emergency Contact"><Input value={f.emergencyContact || ''} onChange={(e) => set('emergencyContact', e.target.value)} /></Field>
       </div>
+      </>}
 
+      {show('professional') && <>
       <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500 mt-6 mb-3">Professional</h4>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Designation"><Input value={f.designation || ''} onChange={(e) => set('designation', e.target.value)} /></Field>
@@ -233,7 +238,9 @@ function EditEmployeeModal({ emp, open, onClose }) {
         <Field label="Employment Type"><Select value={f.type} onChange={(e) => set('type', e.target.value)}>{ETYPES.map((t) => <option key={t}>{t}</option>)}</Select></Field>
         <Field label="Status"><Select value={f.status} onChange={(e) => set('status', e.target.value)}><option>Active</option><option>Resigned</option><option>Inactive</option></Select></Field>
       </div>
+      </>}
 
+      {show('compensation') && <>
       <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500 mt-6 mb-3">Compensation</h4>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <Field label="Annual CTC"><Input type="number" value={c.ctc} onChange={(e) => setC('ctc', e.target.value)} /></Field>
@@ -252,6 +259,7 @@ function EditEmployeeModal({ emp, open, onClose }) {
         </div>
         <p className="text-xs text-slate-400 mt-3">Disabled deductions are excluded from payslips (shown as ₹0).</p>
       </div>
+      </>}
     </Modal>
   )
 }
@@ -322,7 +330,10 @@ export default function EmployeeProfile() {
       {tab === 'overview' && (
         <div className="grid lg:grid-cols-3 gap-4">
           <Card>
-            <h3 className="font-bold mb-2 flex items-center gap-2"><User size={16} className="text-brand-600" /> Personal</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold flex items-center gap-2"><User size={16} className="text-brand-600" /> Personal</h3>
+              <button className="btn-ghost !p-1.5" title="Edit personal details" onClick={() => setModal('edit:personal')}><Edit3 size={15} /></button>
+            </div>
             <InfoRow icon={Mail} label="Email" value={emp.email} />
             <InfoRow icon={Phone} label="Mobile" value={emp.mobile} />
             <InfoRow icon={MapPin} label="Address" value={emp.address} />
@@ -330,7 +341,10 @@ export default function EmployeeProfile() {
             <InfoRow icon={Phone} label="Emergency Contact" value={emp.emergencyContact} />
           </Card>
           <Card>
-            <h3 className="font-bold mb-2 flex items-center gap-2"><Briefcase size={16} className="text-brand-600" /> Professional</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold flex items-center gap-2"><Briefcase size={16} className="text-brand-600" /> Professional</h3>
+              <button className="btn-ghost !p-1.5" title="Edit professional details" onClick={() => setModal('edit:professional')}><Edit3 size={15} /></button>
+            </div>
             <InfoRow icon={Briefcase} label="Designation" value={emp.designation} />
             <InfoRow icon={Briefcase} label="Department" value={emp.department} />
             <InfoRow icon={Calendar} label="Joining Date" value={fmtDate(emp.joiningDate)} />
@@ -338,7 +352,10 @@ export default function EmployeeProfile() {
             <InfoRow icon={MapPin} label="Work Location" value={emp.location} />
           </Card>
           <Card>
-            <h3 className="font-bold mb-3 flex items-center gap-2"><Wallet size={16} className="text-brand-600" /> Compensation</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold flex items-center gap-2"><Wallet size={16} className="text-brand-600" /> Compensation</h3>
+              <button className="btn-ghost !p-1.5" title="Edit compensation" onClick={() => setModal('edit:compensation')}><Edit3 size={15} /></button>
+            </div>
             <SalaryRow label="Annual CTC" value={c.ctc} />
             <div className="my-2 border-t border-slate-100 dark:border-slate-800" />
             <SalaryRow label="Basic" value={c.basic} />
@@ -413,7 +430,7 @@ export default function EmployeeProfile() {
         <button className="btn-ghost text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20" onClick={remove}><Trash2 size={16} /> Delete Employee</button>
       </div>
 
-      <EditEmployeeModal emp={emp} open={modal === 'edit'} onClose={() => setModal(null)} />
+      <EditEmployeeModal emp={emp} open={(modal || '').startsWith('edit')} section={(modal || '').split(':')[1] || 'all'} onClose={() => setModal(null)} />
       <OfferModal emp={emp} open={modal === 'offer'} onClose={() => setModal(null)} />
       <AppointmentModal emp={emp} open={modal === 'appointment'} onClose={() => setModal(null)} />
       <PromoteModal emp={emp} open={modal === 'promote'} onClose={() => setModal(null)} />

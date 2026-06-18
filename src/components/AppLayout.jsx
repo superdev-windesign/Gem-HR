@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import ErrorBoundary from './ErrorBoundary'
+import { PageSkeleton } from './ui'
 import {
   LayoutDashboard, Users, Wallet, FileText, Receipt, Building2, CreditCard,
   BarChart3, Settings, Search, Moon, Sun, Menu, X, TrendingUp, Bell, LogOut, Command,
@@ -25,6 +26,16 @@ const NAV = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
+// Pick a skeleton shape that matches the page being loaded.
+function skeletonVariant(path) {
+  if (path === '/' || path === '/finance') return 'dashboard'
+  if (/^\/employees\/.+/.test(path) || /^\/clients\/.+/.test(path)) return 'profile'
+  if (path === '/clients') return 'cards'
+  if (['/payroll', '/invoices', '/expenses'].includes(path)) return 'stats'
+  if (path === '/settings') return 'cards'
+  return 'table'
+}
+
 function Logo() {
   return (
     <div className="flex items-center gap-2.5 px-2">
@@ -39,7 +50,7 @@ function Logo() {
 
 export default function AppLayout() {
   const { theme, toggle } = useTheme()
-  const { settings, activity, status } = useStore()
+  const { settings, activity, status, loading } = useStore()
   const { user, logout, authEnabled } = useAuth()
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
@@ -166,9 +177,13 @@ export default function AppLayout() {
         </header>
 
         <main className="flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">
-          <ErrorBoundary key={location.pathname}>
-            <Outlet />
-          </ErrorBoundary>
+          {loading ? (
+            <PageSkeleton variant={skeletonVariant(location.pathname)} />
+          ) : (
+            <ErrorBoundary key={location.pathname}>
+              <Outlet />
+            </ErrorBoundary>
+          )}
         </main>
       </div>
 

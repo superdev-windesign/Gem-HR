@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import ErrorBoundary from './ErrorBoundary'
 import {
   LayoutDashboard, Users, Wallet, FileText, Receipt, Building2, CreditCard,
   BarChart3, Settings, Search, Moon, Sun, Menu, X, TrendingUp, Bell, LogOut, Command,
@@ -44,6 +45,7 @@ export default function AppLayout() {
   const [mobileNav, setMobileNav] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const nav = useNavigate()
+  const location = useLocation()
 
   useEffect(() => {
     const onKey = (e) => {
@@ -164,7 +166,9 @@ export default function AppLayout() {
         </header>
 
         <main className="flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">
-          <Outlet />
+          <ErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 

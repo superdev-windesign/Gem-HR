@@ -178,6 +178,8 @@ export function buildSeed() {
       { id: uid('pr'), empId: employees[3].id, fromDesignation: 'UI Designer', toDesignation: 'Product Designer', fromSalary: 900000, toSalary: 1200000, effectiveDate: dateAgo(60), newDepartment: '', newManager: '', notes: 'Strong performance on the Nimbus project.' },
     ],
     documents: [],
+    customPeople: [],
+    customPayments: [],
     activity: [
       { id: uid('act'), type: 'Invoice Paid', message: 'Invoice INV-2026-002 marked paid (₹4,13,000)', date: daysAgo(33) },
       { id: uid('act'), type: 'Employee Added', message: 'Vikram Nair joined as Design Intern', date: daysAgo(120) },

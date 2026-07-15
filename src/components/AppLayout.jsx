@@ -4,7 +4,7 @@ import ErrorBoundary from './ErrorBoundary'
 import { PageSkeleton } from './ui'
 import {
   LayoutDashboard, Users, Wallet, FileText, Receipt, Building2, CreditCard,
-  BarChart3, Settings, Search, Moon, Sun, Menu, X, TrendingUp, Bell, LogOut, Command,
+  BarChart3, Settings, Search, Moon, Sun, Menu, X, TrendingUp, Bell, LogOut, Command, HandCoins,
 } from 'lucide-react'
 import { useTheme } from '../store/ThemeContext'
 import { useStore } from '../store/StoreContext'
@@ -21,6 +21,7 @@ const NAV = [
   { to: '/invoices', label: 'Invoices', icon: Receipt },
   { to: '/clients', label: 'Clients', icon: Building2 },
   { to: '/expenses', label: 'Expenses', icon: CreditCard },
+  { to: '/custom-payments', label: 'Custom Payments', icon: HandCoins },
   { to: '/finance', label: 'Finance', icon: TrendingUp },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -31,7 +32,7 @@ function skeletonVariant(path) {
   if (path === '/' || path === '/finance') return 'dashboard'
   if (/^\/employees\/.+/.test(path) || /^\/clients\/.+/.test(path)) return 'profile'
   if (path === '/clients') return 'cards'
-  if (['/payroll', '/invoices', '/expenses'].includes(path)) return 'stats'
+  if (['/payroll', '/invoices', '/expenses', '/custom-payments'].includes(path)) return 'stats'
   if (path === '/settings') return 'cards'
   return 'table'
 }

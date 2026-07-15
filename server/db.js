@@ -17,6 +17,7 @@ export const client = createClient({ url, authToken })
 export const COLLECTIONS = [
   'employees', 'timeline', 'clients', 'invoices',
   'expenses', 'payslips', 'promotions', 'documents', 'activity',
+  'customPeople', 'customPayments',
 ]
 
 export async function ensureSchema() {

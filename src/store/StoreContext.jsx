@@ -298,6 +298,66 @@ export function StoreProvider({ children }) {
     setDb((d) => ({ ...d, expenses: d.expenses.filter((e) => e.id !== id) }))
   }, [])
 
+  // ---- Custom Payments (personal lending / advances ledger) ------------
+  const addPerson = useCallback(
+    (name, note = '') => {
+      const p = { id: uid('cp'), name: name.trim(), note, createdAt: new Date().toISOString() }
+      setDb((d) => ({ ...d, customPeople: [...(d.customPeople || []), p] }))
+      log('Custom Person Added', name)
+      return p
+    },
+    [log]
+  )
+  const updatePerson = useCallback((id, patch) => {
+    setDb((d) => ({ ...d, customPeople: (d.customPeople || []).map((p) => (p.id === id ? { ...p, ...patch } : p)) }))
+  }, [])
+  const deletePerson = useCallback((id) => {
+    setDb((d) => ({
+      ...d,
+      customPeople: (d.customPeople || []).filter((p) => p.id !== id),
+      customPayments: (d.customPayments || []).filter((x) => x.personId !== id),
+    }))
+  }, [])
+
+  const addPayment = useCallback(
+    (pmt) => {
+      const rec = { id: uid('cpay'), type: 'given', note: '', ...pmt, amount: Number(pmt.amount) || 0 }
+      setDb((d) => ({ ...d, customPayments: [rec, ...(d.customPayments || [])] }))
+      return rec
+    },
+    []
+  )
+  const updatePayment = useCallback((id, patch) => {
+    setDb((d) => ({
+      ...d,
+      customPayments: (d.customPayments || []).map((x) =>
+        x.id === id ? { ...x, ...patch, amount: patch.amount != null ? Number(patch.amount) || 0 : x.amount } : x
+      ),
+    }))
+  }, [])
+  const deletePayment = useCallback((id) => {
+    setDb((d) => ({ ...d, customPayments: (d.customPayments || []).filter((x) => x.id !== id) }))
+  }, [])
+
+  // Clone a payment into the following `months` months (same amount, editable after).
+  const duplicatePayment = useCallback(
+    (id, months) => {
+      setDb((d) => {
+        const src = (d.customPayments || []).find((x) => x.id === id)
+        if (!src) return d
+        const copies = []
+        for (let i = 1; i <= months; i++) {
+          const base = new Date(src.date)
+          base.setMonth(base.getMonth() + i)
+          copies.push({ ...src, id: uid('cpay'), date: base.toISOString().slice(0, 10) })
+        }
+        return { ...d, customPayments: [...copies, ...(d.customPayments || [])] }
+      })
+      log('Payments Duplicated', `${months} month(s)`)
+    },
+    [log]
+  )
+
   // ---- Backup / Restore -----------------------------------------------
   const restore = useCallback((data) => {
     setDb(data)
@@ -314,6 +374,8 @@ export function StoreProvider({ children }) {
   const value = {
     db,
     ...db,
+    customPeople: db.customPeople || [],
+    customPayments: db.customPayments || [],
     status,
     loading: status === 'connecting',
     finance,
@@ -337,6 +399,13 @@ export function StoreProvider({ children }) {
     deleteInvoice,
     saveExpense,
     deleteExpense,
+    addPerson,
+    updatePerson,
+    deletePerson,
+    addPayment,
+    updatePayment,
+    deletePayment,
+    duplicatePayment,
     restore,
     resetAll,
     clearAll,

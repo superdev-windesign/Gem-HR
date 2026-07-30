@@ -73,11 +73,24 @@ export function StoreProvider({ children }) {
   }, [])
 
   // ---- Employees -------------------------------------------------------
-  const nextEmpId = useCallback(() => {
-    const nums = db.employees.map((e) => parseInt(String(e.empId).replace(/\D/g, ''), 10)).filter((n) => !isNaN(n))
-    const next = (nums.length ? Math.max(...nums) : 0) + 1
-    return 'WD-' + String(next).padStart(3, '0')
-  }, [db.employees])
+  // Interns get their own code series (WD-INT-01) so they never consume an
+  // employee number; converting an intern later assigns a fresh employee code.
+  const nextEmpId = useCallback(
+    (type = 'Full Time') => {
+      const ids = db.settings?.ids || { employeePrefix: 'WD-', internPrefix: 'WD-INT-' }
+      const isIntern = type === 'Intern'
+      const prefix = isIntern ? ids.internPrefix : ids.employeePrefix
+      const pad = isIntern ? 2 : 3
+      const seqs = db.employees
+        .map((e) => String(e.empId || ''))
+        .filter((id) => (isIntern ? id.startsWith(ids.internPrefix) : id.startsWith(ids.employeePrefix) && !id.startsWith(ids.internPrefix)))
+        .map((id) => parseInt(id.slice(prefix.length), 10))
+        .filter((n) => !isNaN(n))
+      const next = (seqs.length ? Math.max(...seqs) : 0) + 1
+      return prefix + String(next).padStart(pad, '0')
+    },
+    [db.employees, db.settings]
+  )
 
   const saveEmployee = useCallback(
     (emp) => {
@@ -118,6 +131,47 @@ export function StoreProvider({ children }) {
       timeline: d.timeline.filter((t) => t.empId !== id),
     }))
   }, [])
+
+  // Convert an intern into a permanent employee: issues a fresh employee code
+  // (keeping the intern code in history) and moves them into the employee list.
+  const convertIntern = useCallback(
+    (empId, data) => {
+      const newId = nextEmpId('Full Time')
+      let converted = null
+      setDb((d) => ({
+        ...d,
+        employees: d.employees.map((e) => {
+          if (e.id !== empId) return e
+          converted = {
+            ...e,
+            internId: e.empId,
+            empId: data.empId || newId,
+            type: 'Full Time',
+            designation: data.designation || e.designation,
+            department: data.department || e.department,
+            manager: data.manager || e.manager,
+            location: data.location || e.location,
+            joiningDate: data.effectiveDate || e.joiningDate,
+            internSince: e.joiningDate,
+            convertedOn: data.effectiveDate || new Date().toISOString().slice(0, 10),
+            status: 'Active',
+            compensation: { ...e.compensation, ...(data.compensation || {}) },
+          }
+          return converted
+        }),
+      }))
+      const emp = db.employees.find((e) => e.id === empId)
+      addTimeline(
+        empId,
+        'Converted to Full Time',
+        `Internship (${emp?.empId}) converted to permanent employment as ${data.designation || emp?.designation}. New employee ID: ${data.empId || newId}.`,
+        data.effectiveDate
+      )
+      log('Intern Converted', `${emp?.name} is now a full-time employee (${data.empId || newId})`)
+      return converted
+    },
+    [db.employees, nextEmpId, addTimeline, log]
+  )
 
   // ---- Promotions ------------------------------------------------------
   const promoteEmployee = useCallback(
@@ -392,6 +446,7 @@ export function StoreProvider({ children }) {
     saveEmployee,
     updateEmployee,
     deleteEmployee,
+    convertIntern,
     promoteEmployee,
     generatePayslip,
     runPayroll,

@@ -3,11 +3,12 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Mail, Phone, MapPin, Calendar, User, Briefcase, Wallet, FileText,
   Award, FileSignature, FilePlus, Receipt, Clock, Download, Edit3, Trash2, ChevronRight,
+  GraduationCap, ArrowUpCircle,
 } from 'lucide-react'
 import { useStore } from '../store/StoreContext'
 import { PageHeader, Card, Avatar, Badge, Tabs, Modal, Field, Input, Select, Textarea, useConfirm, EmptyState } from '../components/ui'
 import { money, fmtDate, fmtDateTime } from '../lib/format'
-import { offerLetterHTML, appointmentLetterHTML, promotionLetterHTML, payslipHTML } from '../lib/documents'
+import { offerLetterHTML, internshipOfferLetterHTML, appointmentLetterHTML, promotionLetterHTML, payslipHTML } from '../lib/documents'
 import { exportPDF, exportDOC } from '../lib/export'
 
 function InfoRow({ icon: Icon, label, value }) {
@@ -181,6 +182,106 @@ function PayslipModal({ emp, open, onClose }) {
   )
 }
 
+// ---------- Internship Offer Letter Modal ----------
+function InternshipOfferModal({ emp, open, onClose }) {
+  const { settings, addDocument } = useStore()
+  const [d, setD] = useState({
+    candidateName: emp.name, role: emp.designation, department: emp.department,
+    joiningDate: emp.joiningDate, location: emp.location, manager: emp.manager,
+    duration: emp.internDuration || settings.defaults?.internDuration || '6 months from the date of joining',
+    workingDays: settings.defaults?.internWorkingDays || 'Monday to Friday, 10:00 AM to 7:00 PM',
+    stipend: emp.compensation?.basic || 5000,
+    date: new Date().toISOString().slice(0, 10),
+  })
+  useEffect(() => { if (open) setD((p) => ({ ...p, candidateName: emp.name, stipend: emp.compensation?.basic || 5000 })) }, [open, emp])
+  const set = (k, v) => setD((p) => ({ ...p, [k]: v }))
+  const build = () => internshipOfferLetterHTML(emp, d, settings.company)
+  const finalize = (fn, ext) => {
+    fn()
+    addDocument({ type: 'Internship Offer Letter', name: `${emp.name} — Internship Offer Letter`, empId: emp.id, category: 'Employee', timelineType: 'Internship Offer Letter Generated', format: ext, html: build() })
+    onClose()
+  }
+  return (
+    <Modal open={open} onClose={onClose} title="Generate Internship Offer Letter" size="lg"
+      footer={<>
+        <button className="btn-outline" onClick={() => exportPDF(build(), 'Internship Offer Letter')}><Download size={16} /> Preview / PDF</button>
+        <button className="btn-outline" onClick={() => finalize(() => exportDOC(build(), `${emp.name}-Internship-Offer.doc`), 'DOCX')}>Save DOCX</button>
+        <button className="btn-primary" onClick={() => finalize(() => exportPDF(build(), 'Internship Offer Letter'), 'PDF')}>Generate & Store</button>
+      </>}>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="Candidate Name"><Input value={d.candidateName} onChange={(e) => set('candidateName', e.target.value)} /></Field>
+        <Field label="Position"><Input value={d.role} onChange={(e) => set('role', e.target.value)} /></Field>
+        <Field label="Department"><Input value={d.department} onChange={(e) => set('department', e.target.value)} /></Field>
+        <Field label="Date of Joining"><Input type="date" value={d.joiningDate} onChange={(e) => set('joiningDate', e.target.value)} /></Field>
+        <Field label="Reporting Manager"><Input value={d.manager} onChange={(e) => set('manager', e.target.value)} /></Field>
+        <Field label="Work Location"><Input value={d.location} onChange={(e) => set('location', e.target.value)} /></Field>
+        <Field label="Monthly Stipend (₹)"><Input type="number" value={d.stipend} onChange={(e) => set('stipend', e.target.value)} /></Field>
+        <Field label="Letter Date"><Input type="date" value={d.date} onChange={(e) => set('date', e.target.value)} /></Field>
+        <Field label="Duration" className="sm:col-span-2"><Input value={d.duration} onChange={(e) => set('duration', e.target.value)} /></Field>
+        <Field label="Working Days" className="sm:col-span-2"><Input value={d.workingDays} onChange={(e) => set('workingDays', e.target.value)} /></Field>
+      </div>
+      <p className="text-xs text-slate-400 mt-4">Includes the standard ten internship terms and the acknowledgement block, on the Windesign letterhead.</p>
+    </Modal>
+  )
+}
+
+// ---------- Convert Intern → Full Time Modal ----------
+function ConvertInternModal({ emp, open, onClose }) {
+  const { convertIntern, nextEmpId, settings, addDocument } = useStore()
+  const [d, setD] = useState({
+    empId: '', designation: emp.designation, department: emp.department, manager: emp.manager,
+    location: emp.location, effectiveDate: new Date().toISOString().slice(0, 10), ctc: 600000,
+  })
+  useEffect(() => {
+    if (open) setD((p) => ({ ...p, empId: nextEmpId('Full Time'), designation: emp.designation, department: emp.department }))
+  }, [open]) // eslint-disable-line
+  const set = (k, v) => setD((p) => ({ ...p, [k]: v }))
+
+  const submit = (alsoLetter) => {
+    const ctc = Number(d.ctc) || 0
+    const basic = Math.round((ctc * 0.4) / 12)
+    const hra = Math.round(basic * 0.5)
+    const compensation = {
+      ctc, basic, hra,
+      special: Math.max(Math.round(ctc / 12 - basic - hra - 2000), 0),
+      other: 2000, bonus: Math.round((ctc * 0.05) / 12),
+      pf: Math.round(basic * 0.12), esic: ctc < 252000 ? Math.round((ctc / 12) * 0.0075) : 0,
+      tax: Math.round((ctc / 12) * 0.08),
+      pfEnabled: true, esicEnabled: true, taxEnabled: true,
+    }
+    const updated = convertIntern(emp.id, { ...d, ctc, compensation })
+    if (alsoLetter && updated) {
+      const html = appointmentLetterHTML(updated, { role: d.designation, department: d.department, joiningDate: d.effectiveDate, manager: d.manager, location: d.location }, settings.company)
+      exportPDF(html, 'Appointment Letter')
+      addDocument({ type: 'Appointment Letter', name: `${emp.name} — Appointment Letter`, empId: emp.id, category: 'Employee', format: 'PDF', html })
+    }
+    onClose()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={`Convert to Full Time — ${emp.name}`} size="lg"
+      footer={<>
+        <button className="btn-outline" onClick={onClose}>Cancel</button>
+        <button className="btn-outline" onClick={() => submit(false)}>Convert Only</button>
+        <button className="btn-primary" onClick={() => submit(true)}><ArrowUpCircle size={16} /> Convert & Appointment Letter</button>
+      </>}>
+      <div className="rounded-xl bg-brand-600/10 p-3 mb-4 text-sm text-slate-600 dark:text-slate-300">
+        Internship code <b>{emp.empId}</b> will be retained in the timeline, and a new employee code issued below. {emp.name} will move into the full-time employee list.
+      </div>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="New Employee ID"><Input value={d.empId} onChange={(e) => set('empId', e.target.value)} /></Field>
+        <Field label="Effective Date"><Input type="date" value={d.effectiveDate} onChange={(e) => set('effectiveDate', e.target.value)} /></Field>
+        <Field label="Designation"><Input value={d.designation} onChange={(e) => set('designation', e.target.value)} placeholder="Design Engineer" /></Field>
+        <Field label="Department"><Select value={d.department} onChange={(e) => set('department', e.target.value)}>{DEPTS.map((x) => <option key={x}>{x}</option>)}</Select></Field>
+        <Field label="Reporting Manager"><Input value={d.manager} onChange={(e) => set('manager', e.target.value)} /></Field>
+        <Field label="Work Location"><Input value={d.location} onChange={(e) => set('location', e.target.value)} /></Field>
+        <Field label="Annual CTC (₹)" className="sm:col-span-2"><Input type="number" value={d.ctc} onChange={(e) => set('ctc', e.target.value)} /></Field>
+      </div>
+      <p className="text-xs text-slate-400 mt-4">Salary components are recalculated from the CTC, and PF/ESIC/TDS are switched on (editable afterwards).</p>
+    </Modal>
+  )
+}
+
 // ---------- Edit Employee Modal (Personal / Professional / Compensation) ----------
 const DEPTS = ['Leadership', 'Design', 'Engineering', 'Marketing', 'People', 'Finance', 'Operations']
 const ETYPES = ['Full Time', 'Intern', 'Freelancer', 'Contractor']
@@ -275,6 +376,7 @@ const TL_ICON = {
   'Appointment Letter Generated': FilePlus, 'Salary Revision': Wallet, Promotion: Award,
   'Department Change': Briefcase, 'Manager Change': User, Resignation: ArrowLeft, Exit: ArrowLeft,
   'Payslip Generated': Receipt, 'Document Generated': FileText,
+  'Internship Offer Letter Generated': GraduationCap, 'Converted to Full Time': ArrowUpCircle,
 }
 
 export default function EmployeeProfile() {
@@ -292,6 +394,7 @@ export default function EmployeeProfile() {
   const empDocs = documents.filter((d) => d.empId === id)
   const empSlips = payslips.filter((p) => p.empId === id)
   const c = emp.compensation
+  const isIntern = emp.type === 'Intern'
 
   const remove = async () => {
     if (await confirm({ title: 'Delete employee?', message: `${emp.name} and their timeline will be permanently removed.`, danger: true, confirmText: 'Delete' })) {
@@ -317,13 +420,32 @@ export default function EmployeeProfile() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="btn-outline" onClick={() => setModal('edit')}><Edit3 size={16} /> Edit</button>
-            <button className="btn-outline" onClick={() => setModal('offer')}><FileSignature size={16} /> Offer Letter</button>
-            <button className="btn-outline" onClick={() => setModal('appointment')}><FilePlus size={16} /> Appointment</button>
-            <button className="btn-outline" onClick={() => setModal('promote')}><Award size={16} /> Promote</button>
-            <button className="btn-primary" onClick={() => setModal('payslip')}><Receipt size={16} /> Payslip</button>
+            {isIntern ? (
+              <>
+                <button className="btn-outline" onClick={() => setModal('internOffer')}><FileSignature size={16} /> Internship Offer</button>
+                <button className="btn-outline" onClick={() => setModal('payslip')}><Receipt size={16} /> Payslip</button>
+                <button className="btn-primary" onClick={() => setModal('convert')}><ArrowUpCircle size={16} /> Convert to Full Time</button>
+              </>
+            ) : (
+              <>
+                <button className="btn-outline" onClick={() => setModal('offer')}><FileSignature size={16} /> Offer Letter</button>
+                <button className="btn-outline" onClick={() => setModal('appointment')}><FilePlus size={16} /> Appointment</button>
+                <button className="btn-outline" onClick={() => setModal('promote')}><Award size={16} /> Promote</button>
+                <button className="btn-primary" onClick={() => setModal('payslip')}><Receipt size={16} /> Payslip</button>
+              </>
+            )}
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-400">
+          {emp.internId && (
+            <span className="rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-1 font-medium">
+              <GraduationCap size={11} className="inline mb-0.5 mr-1" />
+              Converted from internship {emp.internId}{emp.convertedOn ? ` on ${fmtDate(emp.convertedOn)}` : ''}
+            </span>
+          )}
+          {isIntern && emp.internDuration && (
+            <span className="rounded-md bg-violet-500/10 text-violet-700 dark:text-violet-300 px-2 py-1 font-medium">Duration: {emp.internDuration}</span>
+          )}
           <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1">Every action is independent — generate documents in any order.</span>
         </div>
       </Card>
@@ -437,6 +559,8 @@ export default function EmployeeProfile() {
       </div>
 
       <EditEmployeeModal emp={emp} open={(modal || '').startsWith('edit')} section={(modal || '').split(':')[1] || 'all'} onClose={() => setModal(null)} />
+      <InternshipOfferModal emp={emp} open={modal === 'internOffer'} onClose={() => setModal(null)} />
+      <ConvertInternModal emp={emp} open={modal === 'convert'} onClose={() => setModal(null)} />
       <OfferModal emp={emp} open={modal === 'offer'} onClose={() => setModal(null)} />
       <AppointmentModal emp={emp} open={modal === 'appointment'} onClose={() => setModal(null)} />
       <PromoteModal emp={emp} open={modal === 'promote'} onClose={() => setModal(null)} />

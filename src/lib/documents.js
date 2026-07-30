@@ -67,6 +67,13 @@ function letterhead(company, body) {
     .lh table.comp .tot{background:#f8fafc;font-weight:800;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .lh .sect{font-weight:700;color:#16264a;margin:18px 0 4px;font-size:13px}
     .lh .sign{margin-top:46px;display:flex;justify-content:space-between;page-break-inside:avoid}
+    .lh ol.terms{margin:8px 0 14px;padding-left:18px}
+    .lh ol.terms li{margin-bottom:9px;text-align:justify;line-height:1.7}
+    .lh .ack{margin-top:26px;padding-top:16px;border-top:1px solid #e2e8f0;page-break-inside:avoid}
+    .lh .ackrow{display:flex;justify-content:space-between;gap:40px;margin-top:34px}
+    .lh .ackrow>div{flex:1}
+    .lh .ackline{border-bottom:1px solid #94a3b8;height:34px;margin-bottom:6px}
+    .lh .ackrow span{font-size:11.5px;color:#64748b}
     .lh table.kv,.lh table.comp,.lh .refrow{page-break-inside:avoid}
   </style>
   <div class="lh">
@@ -140,6 +147,63 @@ export function offerLetterHTML(emp, data, company) {
     </table>
     <p>We look forward to welcoming you. Please sign and return a copy of this letter as a token of your acceptance.</p>
     ${signRow(company, data.candidateName || emp.name, 'Candidate')}`
+  return letterhead(company, body)
+}
+
+// Internship offer letter — mirrors the official Windesign internship letter,
+// including the ten standard terms and the acknowledgement block.
+export function internshipOfferLetterHTML(emp, data, company) {
+  const c = company || {}
+  const year = new Date(data.date || Date.now()).getFullYear()
+  const stipend = Number(data.stipend || 0)
+  const stipendText = `Rs. ${stipend.toLocaleString('en-IN')} per month`
+  const terms = [
+    ['Stipend and payment', `A consolidated stipend of Rs. ${stipend.toLocaleString('en-IN')} per month will be paid to you, credited to your registered bank account on or before the 7th day of the following month, subject to any deductions required under applicable law. No other allowance, reimbursement or benefit is payable unless approved in writing by the Company.`],
+    ['Nature of engagement', 'This is a fixed-term internship undertaken for the purpose of training and practical exposure. It does not constitute an offer of employment, and you will not be treated as an employee of the Company for any purpose during the internship period.'],
+    ['Attendance and conduct', "You are expected to observe the working hours stated above and to comply with the Company's policies on conduct, attendance, information security and workplace behaviour, as communicated from time to time."],
+    ['Confidentiality', 'You shall keep confidential all proprietary information, source code, client data, designs, business plans and other non-public information accessed during the internship, and shall not disclose or use the same for any purpose other than performing your assigned work. This obligation survives the completion or termination of the internship.'],
+    ['Intellectual property', 'All work product, code, designs, documentation and other deliverables created by you in the course of the internship shall vest exclusively with the Company, and you assign all rights, title and interest therein to the Company.'],
+    ['Termination', "Either party may terminate this internship by giving 15 days' prior written notice. The Company may terminate the internship with immediate effect in the event of misconduct, breach of confidentiality, unsatisfactory performance or unauthorised absence."],
+    ['Completion certificate', 'On successful completion of the internship period, and subject to satisfactory performance and conduct, you will be issued an Internship Completion Certificate.'],
+    ['Future employment', "Depending on your performance during the internship and the Company's business requirements at the relevant time, you may be considered for a full-time role. Such consideration is at the Company's sole discretion and is not assured by this letter."],
+    ['Documentation', 'You are required to submit copies of your government-issued photo identification, address proof, educational certificates and two passport-size photographs on or before your date of joining.'],
+    ['Governing law', 'This letter shall be governed by the laws of India, and the courts at Nagpur, Maharashtra shall have exclusive jurisdiction over any dispute arising out of it.'],
+  ]
+  const body = `
+    <h1 class="title">INTERNSHIP OFFER LETTER</h1>
+    <div class="subtitle">Windesign · ${data.department || emp.department}</div>
+    ${refRow(data.ref || `WD/HR/INT/${year}/${emp.empId}`, data.date || new Date())}
+    ${toBlock({ name: data.candidateName || emp.name, email: emp.email, mobile: emp.mobile })}
+    <p><b>Subject: Offer of Internship — ${data.role || emp.designation}</b></p>
+    <p>Dear ${(data.candidateName || emp.name).split(' ')[0]},</p>
+    <p>Further to our discussions and your interest in joining us, we are delighted to offer you an internship with ${c.name || 'Windesign'} in the position of <b>${data.role || emp.designation}</b> within the ${data.department || emp.department} department. Your technical aptitude and enthusiasm stood out through our selection process, and we look forward to having you contribute to our product team.</p>
+    <p>The principal terms of this internship are set out below.</p>
+    ${kv([
+      ['Position', data.role || emp.designation],
+      ['Department', data.department || emp.department],
+      ['Date of Joining', longDate(data.joiningDate || emp.joiningDate)],
+      ['Duration', data.duration || '6 months from the date of joining'],
+      ['Reporting Manager', data.manager || emp.manager || '—'],
+      ['Work Location', data.location || emp.location],
+      ['Working Days', data.workingDays || 'Monday to Friday, 10:00 AM to 7:00 PM'],
+      ['Stipend', stipendText],
+    ])}
+    <div class="sect">Terms and Conditions</div>
+    <ol class="terms">
+      ${terms.map(([h, t]) => `<li><b>${h}.</b> ${t}</li>`).join('')}
+    </ol>
+    <p>Please confirm your acceptance by signing the acknowledgement below and returning a scanned copy of this letter to ${c.email || ''} within seven (7) days of receipt. Should you have any questions, please feel free to reach out to us.</p>
+    <p>We look forward to welcoming you to the team.</p>
+    <p style="margin-bottom:0">Warm regards,</p>
+    <div style="margin-top:6px">${signatureMark(company, c.signatoryTitle || 'Founder & Director')}</div>
+    <div class="ack">
+      <div class="sect" style="margin-top:0">Acknowledgement and Acceptance</div>
+      <p>I, <b>${data.candidateName || emp.name}</b>, have read and understood the terms and conditions set out in this letter and accept the internship offered to me on the terms stated herein. I confirm that I will report for joining on the date mentioned above.</p>
+      <div class="ackrow">
+        <div><div class="ackline"></div><span>Signature of Candidate</span></div>
+        <div><div class="ackline"></div><span>Date</span></div>
+      </div>
+    </div>`
   return letterhead(company, body)
 }
 

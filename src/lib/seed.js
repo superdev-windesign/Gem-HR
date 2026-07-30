@@ -153,9 +153,15 @@ export function buildSeed() {
       },
       logo: '',
     },
+    ids: {
+      employeePrefix: 'WD-',
+      internPrefix: 'WD-INT-',
+    },
     defaults: {
       probation: '3 months',
       notice: '30 days',
+      internDuration: '6 months from the date of joining',
+      internWorkingDays: 'Monday to Friday, 10:00 AM to 7:00 PM',
       gstRate: 18,
       paymentTerms: 'Payment within 15 days via money transfer only to the following account',
       salaryStructure: { basicPct: 40, hraPct: 50 },

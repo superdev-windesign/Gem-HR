@@ -1,5 +1,6 @@
 // Seed data — gives the app a realistic populated state on first run.
 import { uid } from './format.js'
+import { SIGNATURE_DATA_URL } from './signature.js'
 
 const daysAgo = (n) => {
   const d = new Date()
@@ -141,7 +142,7 @@ export function buildSeed() {
       country: 'India',
       currency: 'INR',
       signatoryName: 'Jitendra Raut',
-      signature: '', // base64 data URL, uploaded in Settings → Company
+      signature: SIGNATURE_DATA_URL, // built-in default; replaceable in Settings → Company
       bank: {
         accountName: 'WINDESIGN LABS (OPC) PRIVATE LIMITED',
         accountNumber: '87306270872',

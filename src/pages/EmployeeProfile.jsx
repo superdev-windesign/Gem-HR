@@ -155,8 +155,11 @@ function PayslipModal({ emp, open, onClose }) {
   const { generatePayslip, settings } = useStore()
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10))
+  const [workedDays, setWorkedDays] = useState(26)
+  const [incentive, setIncentive] = useState('')
+  const [loan, setLoan] = useState('')
   const run = (fn) => {
-    const slip = generatePayslip(emp.id, month, payDate)
+    const slip = generatePayslip(emp.id, month, payDate, { workedDays, incentive, loan })
     if (slip && fn) fn(slip)
     onClose()
   }
@@ -169,8 +172,11 @@ function PayslipModal({ emp, open, onClose }) {
       <div className="grid grid-cols-2 gap-4">
         <Field label="Pay Month"><Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>
         <Field label="Pay Date"><Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} /></Field>
+        <Field label="Worked Days"><Input type="number" value={workedDays} onChange={(e) => setWorkedDays(e.target.value)} /></Field>
+        <Field label="Incentive Pay (optional)"><Input type="number" placeholder={`Default ₹${emp.compensation?.bonus || 0}`} value={incentive} onChange={(e) => setIncentive(e.target.value)} /></Field>
+        <Field label="Loan Deduction (optional)"><Input type="number" placeholder="0" value={loan} onChange={(e) => setLoan(e.target.value)} /></Field>
       </div>
-      <p className="text-xs text-slate-400 mt-4">Components are computed from the saved salary structure. The payslip is stored in the employee profile and timeline.</p>
+      <p className="text-xs text-slate-400 mt-4">Basic/HRA/allowances come from the salary structure; PF/ESIC/TDS follow the enable toggles. The payslip is stored in the profile & timeline.</p>
     </Modal>
   )
 }

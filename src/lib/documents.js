@@ -7,128 +7,265 @@ export const qtyNum = (q) => {
   return q === '' || q == null || isNaN(n) ? 1 : n
 }
 
-const styleBlock = `
-  <style>
-    .doc{font-family:Inter,Arial,sans-serif;color:#1e293b;max-width:760px;margin:0 auto}
-    .doc .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1f47f5;padding-bottom:16px;margin-bottom:24px}
-    .doc .brand{font-size:22px;font-weight:800;color:#1f47f5}
-    .doc .muted{color:#64748b;font-size:12px}
-    .doc h2{font-size:18px;margin:18px 0 6px}
-    .doc p{font-size:13px;line-height:1.7;margin:8px 0}
-    .doc table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
-    .doc th,.doc td{border:1px solid #e2e8f0;padding:8px 10px;text-align:left}
-    .doc th{background:#f1f5f9;font-weight:700}
-    .doc .right{text-align:right}
-    .doc .total{background:#eef4ff;font-weight:700}
-    .doc .sign{margin-top:48px;display:flex;justify-content:space-between}
-    .doc .badge{display:inline-block;background:#eef4ff;color:#1f47f5;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700}
-  </style>`
-
-function header(company) {
-  return `<div class="hd">
-    <div>
-      <div class="brand">${company?.name || 'Windesign'}</div>
-      <div class="muted">${company?.address || ''}</div>
-      <div class="muted">${[company?.email, company?.phone].filter(Boolean).join(' · ')}</div>
-    </div>
-    <div class="muted right">${company?.website || ''}<br/>${(company?.gstin || company?.gst) ? 'GSTIN: ' + (company.gstin || company.gst) : ''}</div>
-  </div>`
-}
-
-// Authorised-signatory block: signature image (if uploaded) + name/title.
-function signatureMark(company, title = 'Authorised Signatory') {
-  const img = company?.signature
-    ? `<img src="${company.signature}" alt="signature" style="height:54px;display:block;margin-bottom:2px"/>`
-    : '<div style="height:46px;border-bottom:1px solid #94a3b8;width:180px;margin-bottom:6px"></div>'
-  const name = company?.signatoryName ? `<b>${company.signatoryName}</b><br/>` : ''
-  return `${img}${name}<span style="font-size:12px;color:#64748b">${title}${company?.name ? ', ' + company.name : ''}</span>`
-}
-
-// Date formatted like the reference invoices: "09 April 2026"
+// Date formatted like the reference letters: "09 April 2026"
 function longDate(d) {
   const date = new Date(d)
   if (isNaN(date)) return ''
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
+// Authorised-signatory block: signature image + name/title.
+function signatureMark(company, title = 'Authorised Signatory') {
+  const img = company?.signature
+    ? `<img src="${company.signature}" alt="signature" style="height:56px;display:block;margin-bottom:2px"/>`
+    : '<div style="height:48px;border-bottom:1px solid #94a3b8;width:190px;margin-bottom:6px"></div>'
+  const name = company?.signatoryName ? `<b>${company.signatoryName}</b><br/>` : ''
+  return `${img}${name}<span style="font-size:12px;color:#64748b">${title}${company?.name ? ', ' + company.name : ''}</span>`
+}
+
+const ICON = {
+  home: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/></svg>',
+  phone: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+  mail: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
+}
+
+// The official Windesign letterhead: black accent bars, wordmark, CIN/website,
+// and a contact footer. `body` is the letter content HTML.
+function letterhead(company, body) {
+  const c = company || {}
+  const mark = `<svg width="46" height="34" viewBox="0 0 46 34" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex:none">
+      <path d="M4 4 H42 V13 L23 27 L4 13 Z" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M12 12 L18 20 L23 14 L28 20 L34 12" stroke="#0a0a0a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`
+  const logo = c.logo
+    ? `<img src="${c.logo}" alt="logo" style="height:40px"/>`
+    : `${mark}<span class="lh-word">windesign</span>`
+  return `<style>
+    .lh{font-family:Inter,Arial,sans-serif;color:#1e293b;max-width:790px;margin:0 auto;position:relative}
+    .lh *{box-sizing:border-box}
+    .lh .bar{height:12px;width:74%;background:#0a0a0a;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .lh .bar.top{border-radius:0 0 4px 0}
+    .lh .bar.bot{border-radius:4px 0 0 0;margin-left:auto}
+    .lh .head{display:flex;justify-content:space-between;align-items:center;padding:18px 8px 12px}
+    .lh .logo{display:flex;align-items:center;gap:10px}
+    .lh .lh-word{font-size:27px;font-weight:800;letter-spacing:-0.5px;color:#0a0a0a}
+    .lh .meta{text-align:right;font-size:12px;color:#475569;line-height:1.7}
+    .lh .rule{height:1px;background:#e2e8f0;margin:0 8px}
+    .lh .body{padding:24px 8px;font-size:13px;line-height:1.7}
+    .lh .contact{display:flex;justify-content:space-between;gap:16px;padding:12px 8px 16px;font-size:11px;color:#475569}
+    .lh .contact span{vertical-align:middle}
+    .lh h1.title{font-size:20px;font-weight:800;color:#1e293b;text-align:center;margin:0}
+    .lh .subtitle{text-align:center;font-size:11px;letter-spacing:3px;color:#64748b;margin:4px 0 18px;text-transform:uppercase}
+    .lh .refrow{display:flex;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:14px;font-size:12.5px}
+    .lh p{margin:10px 0}
+    .lh table.kv{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.5px}
+    .lh table.kv td{border:1px solid #e2e8f0;padding:9px 12px}
+    .lh table.kv .k{background:#f8fafc;font-weight:700;width:38%}
+    .lh table.comp{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.5px}
+    .lh table.comp th,.lh table.comp td{border:1px solid #e2e8f0;padding:8px 10px;text-align:left}
+    .lh table.comp th{background:#f1f5f9;font-weight:700}
+    .lh table.comp .r{text-align:right}
+    .lh table.comp .tot{background:#f8fafc;font-weight:800}
+    .lh .sign{margin-top:44px;display:flex;justify-content:space-between}
+  </style>
+  <div class="lh">
+    <div class="bar top"></div>
+    <div class="head">
+      <div class="logo">${logo}</div>
+      <div class="meta">${c.cin ? 'CIN: ' + c.cin : ''}<br/>${c.website || ''}</div>
+    </div>
+    <div class="rule"></div>
+    <div class="body">${body}</div>
+    <div class="rule"></div>
+    <div class="contact">
+      <div>${ICON.home} <span>${c.address || ''}</span></div>
+      <div>${ICON.phone} <span>${c.phone || ''}</span></div>
+      <div>${ICON.mail} <span>${c.email || ''}</span></div>
+    </div>
+    <div class="bar bot"></div>
+  </div>`
+}
+
+function kv(rows) {
+  return `<table class="kv">${rows.filter(Boolean).map(([k, v]) => `<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`).join('')}</table>`
+}
+function refRow(ref, date) {
+  return `<div class="refrow"><div><b>Ref. No.:</b> ${ref}</div><div><b>Date:</b> ${longDate(date)}</div></div>`
+}
+function toBlock(emp) {
+  return `<p>To,<br/><b>${emp.name}</b>${emp.email ? `<br/>Email: ${emp.email}` : ''}${emp.mobile ? `<br/>Mobile: ${emp.mobile}` : ''}</p>`
+}
+function signRow(company, rightName, rightLabel) {
+  const right = rightName
+    ? `<div style="text-align:right"><div style="height:48px;border-bottom:1px solid #94a3b8;width:190px;margin:0 0 6px auto"></div><span style="font-size:12px;color:#64748b">${rightName} (${rightLabel})</span></div>`
+    : '<div></div>'
+  return `<div class="sign"><div>${signatureMark(company)}</div>${right}</div>`
+}
+
 export function offerLetterHTML(emp, data, company) {
   const s = data.salary || {}
-  return `${styleBlock}<div class="doc">${header(company)}
-    <span class="badge">OFFER LETTER</span>
-    <p class="right muted">Date: ${fmtDate(data.date || new Date())}</p>
-    <h2>Dear ${data.candidateName || emp.name},</h2>
-    <p>We are delighted to extend an offer of employment for the position of <b>${data.role || emp.designation}</b> in the <b>${data.department || emp.department}</b> department at ${company?.name || 'our company'}.</p>
-    <p>Your tentative date of joining will be <b>${fmtDate(data.joiningDate)}</b>, based at <b>${data.location || emp.location}</b>, reporting to <b>${data.manager || emp.manager || '—'}</b>. This offer carries a probation period of <b>${data.probation || '3 months'}</b> and a notice period of <b>${data.notice || '30 days'}</b>.</p>
-    <h2>Compensation Structure</h2>
-    <table>
-      <tr><th>Component</th><th class="right">Monthly</th><th class="right">Annual</th></tr>
-      <tr><td>Basic Salary</td><td class="right">${money(s.basic, company?.currency)}</td><td class="right">${money(s.basic * 12, company?.currency)}</td></tr>
-      <tr><td>HRA</td><td class="right">${money(s.hra, company?.currency)}</td><td class="right">${money(s.hra * 12, company?.currency)}</td></tr>
-      <tr><td>Special Allowance</td><td class="right">${money(s.special, company?.currency)}</td><td class="right">${money(s.special * 12, company?.currency)}</td></tr>
-      <tr><td>Other Allowances</td><td class="right">${money(s.other, company?.currency)}</td><td class="right">${money(s.other * 12, company?.currency)}</td></tr>
-      <tr class="total"><td>Total CTC</td><td class="right">${money(data.monthly, company?.currency)}</td><td class="right">${money(data.annual, company?.currency)}</td></tr>
+  const cur = company?.currency
+  const year = new Date(data.date || Date.now()).getFullYear()
+  const body = `
+    <h1 class="title">OFFER LETTER</h1>
+    <div class="subtitle">Windesign · ${data.department || emp.department}</div>
+    ${refRow(data.ref || `WD/HR/OFR/${year}/${emp.empId}`, data.date || new Date())}
+    ${toBlock({ name: data.candidateName || emp.name, email: emp.email, mobile: emp.mobile })}
+    <p><b>Subject: Offer of Employment — ${data.role || emp.designation}</b></p>
+    <p>Dear ${data.candidateName || emp.name},</p>
+    <p>We are delighted to extend an offer of employment for the position of <b>${data.role || emp.designation}</b> in the <b>${data.department || emp.department}</b> department at ${company?.name || 'our company'}. Your skills and enthusiasm stood out through our selection process, and we look forward to having you on the team.</p>
+    <p>The principal terms of this offer are set out below.</p>
+    ${kv([
+      ['Position', data.role || emp.designation],
+      ['Department', data.department || emp.department],
+      ['Date of Joining', longDate(data.joiningDate)],
+      ['Reporting Manager', data.manager || emp.manager || '—'],
+      ['Work Location', data.location || emp.location],
+      ['Probation Period', data.probation || '3 months'],
+      ['Notice Period', data.notice || '30 days'],
+    ])}
+    <p><b>Compensation Structure</b></p>
+    <table class="comp">
+      <tr><th>Component</th><th class="r">Monthly</th><th class="r">Annual</th></tr>
+      <tr><td>Basic Salary</td><td class="r">${money(s.basic, cur)}</td><td class="r">${money(s.basic * 12, cur)}</td></tr>
+      <tr><td>House Rent Allowance</td><td class="r">${money(s.hra, cur)}</td><td class="r">${money(s.hra * 12, cur)}</td></tr>
+      <tr><td>Special Allowance</td><td class="r">${money(s.special, cur)}</td><td class="r">${money(s.special * 12, cur)}</td></tr>
+      <tr><td>Other Allowances</td><td class="r">${money(s.other, cur)}</td><td class="r">${money(s.other * 12, cur)}</td></tr>
+      <tr class="tot"><td>Total CTC</td><td class="r">${money(data.monthly, cur)}</td><td class="r">${money(data.annual, cur)}</td></tr>
     </table>
-    <p>We look forward to welcoming you to the team. Please sign and return a copy of this letter as a token of your acceptance.</p>
-    <div class="sign"><div>${signatureMark(company)}</div><div><div style="height:46px;border-bottom:1px solid #94a3b8;width:180px;margin-bottom:6px"></div><span style="font-size:12px;color:#64748b">${data.candidateName || emp.name} (Candidate)</span></div></div>
-  </div>`
+    <p>We look forward to welcoming you. Please sign and return a copy of this letter as a token of your acceptance.</p>
+    ${signRow(company, data.candidateName || emp.name, 'Candidate')}`
+  return letterhead(company, body)
 }
 
 export function appointmentLetterHTML(emp, data, company) {
-  return `${styleBlock}<div class="doc">${header(company)}
-    <span class="badge">APPOINTMENT LETTER</span>
-    <p class="right muted">Date: ${fmtDate(data.date || new Date())}</p>
-    <h2>Dear ${emp.name},</h2>
-    <p>With reference to your acceptance of our offer, we are pleased to confirm your appointment as <b>${data.role || emp.designation}</b> in the <b>${data.department || emp.department}</b> department, effective <b>${fmtDate(data.joiningDate || emp.joiningDate)}</b>.</p>
-    <table>
-      <tr><th>Employee ID</th><td>${emp.empId}</td><th>Designation</th><td>${data.role || emp.designation}</td></tr>
-      <tr><th>Department</th><td>${data.department || emp.department}</td><th>Reporting Manager</th><td>${data.manager || emp.manager || '—'}</td></tr>
-      <tr><th>Work Location</th><td>${data.location || emp.location}</td><th>Employment Type</th><td>${emp.type}</td></tr>
-      <tr><th>Annual CTC</th><td colspan="3">${money(emp.compensation?.ctc, company?.currency)}</td></tr>
-    </table>
+  const year = new Date(data.date || Date.now()).getFullYear()
+  const body = `
+    <h1 class="title">APPOINTMENT LETTER</h1>
+    <div class="subtitle">Windesign · ${data.department || emp.department}</div>
+    ${refRow(data.ref || `WD/HR/APT/${year}/${emp.empId}`, data.date || new Date())}
+    ${toBlock(emp)}
+    <p><b>Subject: Appointment as ${data.role || emp.designation}</b></p>
+    <p>Dear ${emp.name},</p>
+    <p>With reference to your acceptance of our offer, we are pleased to confirm your appointment as <b>${data.role || emp.designation}</b> in the <b>${data.department || emp.department}</b> department, effective <b>${longDate(data.joiningDate || emp.joiningDate)}</b>.</p>
+    ${kv([
+      ['Employee ID', emp.empId],
+      ['Designation', data.role || emp.designation],
+      ['Department', data.department || emp.department],
+      ['Reporting Manager', data.manager || emp.manager || '—'],
+      ['Work Location', data.location || emp.location],
+      ['Employment Type', emp.type],
+      ['Annual CTC', money(emp.compensation?.ctc, company?.currency)],
+    ])}
     <p>Your employment will be governed by the company's policies as amended from time to time. We welcome you aboard and wish you a long and successful career with us.</p>
-    <div class="sign"><div>${signatureMark(company)}</div><div><div style="height:46px;border-bottom:1px solid #94a3b8;width:180px;margin-bottom:6px"></div><span style="font-size:12px;color:#64748b">${emp.name} (Employee)</span></div></div>
-  </div>`
+    ${signRow(company, emp.name, 'Employee')}`
+  return letterhead(company, body)
 }
 
 export function promotionLetterHTML(emp, promo, company) {
-  return `${styleBlock}<div class="doc">${header(company)}
-    <span class="badge">PROMOTION LETTER</span>
-    <p class="right muted">Date: ${fmtDate(promo.effectiveDate || new Date())}</p>
-    <h2>Dear ${emp.name},</h2>
-    <p>In recognition of your contribution and performance, we are pleased to promote you from <b>${promo.fromDesignation}</b> to <b>${promo.toDesignation}</b>, effective <b>${fmtDate(promo.effectiveDate)}</b>.</p>
-    <table>
+  const cur = company?.currency
+  const year = new Date(promo.effectiveDate || Date.now()).getFullYear()
+  const body = `
+    <h1 class="title">PROMOTION LETTER</h1>
+    <div class="subtitle">Windesign · ${promo.newDepartment || emp.department}</div>
+    ${refRow(`WD/HR/PRM/${year}/${emp.empId}`, promo.effectiveDate || new Date())}
+    ${toBlock(emp)}
+    <p><b>Subject: Promotion to ${promo.toDesignation}</b></p>
+    <p>Dear ${emp.name},</p>
+    <p>In recognition of your contribution and performance, we are pleased to promote you from <b>${promo.fromDesignation}</b> to <b>${promo.toDesignation}</b>, effective <b>${longDate(promo.effectiveDate)}</b>.</p>
+    <table class="comp">
       <tr><th></th><th>Previous</th><th>Revised</th></tr>
       <tr><td>Designation</td><td>${promo.fromDesignation}</td><td>${promo.toDesignation}</td></tr>
-      <tr><td>Annual Salary</td><td>${money(promo.fromSalary, company?.currency)}</td><td>${money(promo.toSalary, company?.currency)}</td></tr>
+      <tr><td>Annual Salary</td><td>${money(promo.fromSalary, cur)}</td><td>${money(promo.toSalary, cur)}</td></tr>
       ${promo.newDepartment ? `<tr><td>Department</td><td>${emp.department}</td><td>${promo.newDepartment}</td></tr>` : ''}
       ${promo.newManager ? `<tr><td>Manager</td><td>${emp.manager || '—'}</td><td>${promo.newManager}</td></tr>` : ''}
     </table>
     ${promo.notes ? `<p>${promo.notes}</p>` : ''}
     <p>Congratulations on your well-deserved promotion. We look forward to your continued success.</p>
-    <div class="sign"><div>${signatureMark(company)}</div><div></div></div>
-  </div>`
+    ${signRow(company)}`
+  return letterhead(company, body)
 }
 
+// Payslip modeled on the provided sample (centered header, earnings/deductions tables).
 export function payslipHTML(emp, slip, company) {
-  const e = slip.earnings, d = slip.deductions
-  return `${styleBlock}<div class="doc">${header(company)}
-    <span class="badge">PAYSLIP — ${slip.monthLabel}</span>
+  const e = slip.earnings || {}, d = slip.deductions || {}
+  const amt = (n) => Number(n || 0).toLocaleString('en-IN')
+  const c = company || {}
+
+  const earnRows = [
+    ['Basic Pay', e.basic],
+    ['Incentive Pay', e.bonus],
+    ['House Rent Allowance', e.hra],
+    ['Meal Allowance', Number(e.special || 0) + Number(e.other || 0)],
+  ]
+  const dedRows = [
+    ['Provident Fund', d.pf],
+    ['Professional Tax', d.tax],
+    ...(Number(d.esic || 0) > 0 ? [['ESIC', d.esic]] : []),
+    ['Loan', slip.loan || 0],
+  ]
+  const totalEarn = earnRows.reduce((s, [, v]) => s + Number(v || 0), 0)
+  const totalDed = dedRows.reduce((s, [, v]) => s + Number(v || 0), 0)
+  const net = totalEarn - totalDed
+
+  const pad = (rows, to) => {
+    const r = rows.slice()
+    while (r.length < to) r.push(['', ''])
+    return r
+  }
+  const eRows = pad(earnRows, 5).map(([k, v]) => `<tr><td>${k}</td><td class="r">${k ? amt(v) : ''}</td></tr>`).join('')
+  const dRows = pad(dedRows, 4).map(([k, v]) => `<tr><td>${k}</td><td class="r">${k ? amt(v) : ''}</td></tr>`).join('')
+
+  return `<style>
+    .ps{font-family:'Times New Roman',Georgia,serif;color:#111;max-width:720px;margin:0 auto;padding:8px 20px}
+    .ps h1{text-align:center;font-size:22px;font-weight:600;margin:0 0 8px}
+    .ps .co{text-align:center;font-weight:700;font-size:15px;line-height:1.4}
+    .ps .addr{text-align:center;font-size:13px;margin:4px 0 18px}
+    .ps .meta{display:flex;justify-content:space-between;font-size:13px;margin-bottom:18px;gap:30px}
+    .ps .meta .col{flex:1}
+    .ps .meta .row{display:flex;margin-bottom:4px}
+    .ps .meta .lbl{width:130px;color:#111}
+    .ps table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}
+    .ps th,.ps td{border:1px solid #333;padding:6px 10px}
+    .ps th{background:#d9d9d9;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .ps td.r,.ps th.r{text-align:right}
+    .ps .tot td{font-weight:700}
+    .ps .sign{display:flex;justify-content:space-between;margin-top:44px;font-size:13px}
+    .ps .sign .line{border-top:1px solid #111;width:230px;margin-top:44px}
+    .ps .note{text-align:center;font-size:13px;margin-top:36px}
+  </style>
+  <div class="ps">
+    <h1>Pay slip</h1>
+    <div class="co">${c.legalName || c.name || ''}</div>
+    <div class="addr">${c.address || ''}</div>
+    <div class="meta">
+      <div class="col">
+        <div class="row"><span class="lbl">Date of Joining</span><span>: ${emp.joiningDate || '—'}</span></div>
+        <div class="row"><span class="lbl">Pay Period</span><span>: ${slip.periodLabel || slip.monthLabel}</span></div>
+        <div class="row"><span class="lbl">Worked Days</span><span>&nbsp;&nbsp;${slip.workedDays ?? 26}</span></div>
+      </div>
+      <div class="col">
+        <div class="row"><span class="lbl">Employee Name</span><span>: ${emp.name}</span></div>
+        <div class="row"><span class="lbl">Designation</span><span>: ${emp.designation || '—'}</span></div>
+        <div class="row"><span class="lbl">Department</span><span>: ${emp.department || '—'}</span></div>
+      </div>
+    </div>
     <table>
-      <tr><th>Employee</th><td>${emp.name}</td><th>Employee ID</th><td>${emp.empId}</td></tr>
-      <tr><th>Designation</th><td>${emp.designation}</td><th>Department</th><td>${emp.department}</td></tr>
-      <tr><th>Pay Period</th><td>${slip.monthLabel}</td><th>Pay Date</th><td>${fmtDate(slip.payDate)}</td></tr>
+      <tr><th>Earnings</th><th class="r">Amount</th></tr>
+      ${eRows}
+      <tr class="tot"><td class="r">Total Earnings</td><td class="r">${amt(totalEarn)}</td></tr>
     </table>
     <table>
-      <tr><th>Earnings</th><th class="right">Amount</th><th>Deductions</th><th class="right">Amount</th></tr>
-      <tr><td>Basic</td><td class="right">${money(e.basic, company?.currency)}</td><td>Provident Fund</td><td class="right">${money(d.pf, company?.currency)}</td></tr>
-      <tr><td>HRA</td><td class="right">${money(e.hra, company?.currency)}</td><td>ESIC</td><td class="right">${money(d.esic, company?.currency)}</td></tr>
-      <tr><td>Special Allowance</td><td class="right">${money(e.special, company?.currency)}</td><td>Tax (TDS)</td><td class="right">${money(d.tax, company?.currency)}</td></tr>
-      <tr><td>Other Allowances</td><td class="right">${money(e.other, company?.currency)}</td><td>Other</td><td class="right">${money(d.other, company?.currency)}</td></tr>
-      <tr><td>Bonus</td><td class="right">${money(e.bonus, company?.currency)}</td><td></td><td></td></tr>
-      <tr class="total"><td>Gross Earnings</td><td class="right">${money(slip.gross, company?.currency)}</td><td>Total Deductions</td><td class="right">${money(slip.totalDeductions, company?.currency)}</td></tr>
+      <tr><th>Deductions</th><th class="r">Amount</th></tr>
+      ${dRows}
+      <tr class="tot"><td class="r">Total Deductions</td><td class="r">${amt(totalDed)}</td></tr>
+      <tr class="tot"><td class="r">Net Pay</td><td class="r">${amt(net)}</td></tr>
     </table>
-    <table><tr class="total"><td>Net Pay</td><td class="right">${money(slip.net, company?.currency)}</td></tr></table>
-    <div class="sign"><div></div><div style="text-align:right">${signatureMark(company)}</div></div>
+    <div class="sign">
+      <div>Employer Signature${c.signature ? `<br/><img src="${c.signature}" style="height:52px;margin-top:6px"/>` : '<div class="line"></div>'}</div>
+      <div style="text-align:right">Employee Signature<div class="line"></div></div>
+    </div>
+    <div class="note">This is system generated pay slip</div>
   </div>`
 }
 

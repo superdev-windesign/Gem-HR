@@ -148,11 +148,12 @@ export function StoreProvider({ children }) {
 
   // ---- Payroll / Payslips ---------------------------------------------
   const generatePayslip = useCallback(
-    (empId, month, payDate) => {
+    (empId, month, payDate, extra = {}) => {
       const emp = db.employees.find((e) => e.id === empId)
       if (!emp) return null
       const c = emp.compensation
-      const earnings = { basic: c.basic, hra: c.hra, special: c.special, other: c.other, bonus: c.bonus }
+      const bonus = extra.incentive != null && extra.incentive !== '' ? Number(extra.incentive) : c.bonus
+      const earnings = { basic: c.basic, hra: c.hra, special: c.special, other: c.other, bonus }
       // Respect per-employee PF / ESIC / TDS enable toggles (default enabled).
       const deductions = {
         pf: c.pfEnabled === false ? 0 : c.pf,
@@ -160,15 +161,20 @@ export function StoreProvider({ children }) {
         tax: c.taxEnabled === false ? 0 : c.tax,
         other: 0,
       }
+      const loan = Number(extra.loan || 0)
       const gross = Object.values(earnings).reduce((a, b) => a + b, 0)
-      const totalDeductions = Object.values(deductions).reduce((a, b) => a + b, 0)
+      const totalDeductions = Object.values(deductions).reduce((a, b) => a + b, 0) + loan
       const net = gross - totalDeductions
       const ml = new Date(month + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+      const periodLabel = new Date(month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).replace(' ', '-')
       const slip = {
         id: uid('ps'),
         empId,
         month,
         monthLabel: ml,
+        periodLabel,
+        workedDays: extra.workedDays != null && extra.workedDays !== '' ? Number(extra.workedDays) : 26,
+        loan,
         payDate: payDate || new Date().toISOString().slice(0, 10),
         earnings,
         deductions,

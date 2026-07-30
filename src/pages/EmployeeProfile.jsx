@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Mail, Phone, MapPin, Calendar, User, Briefcase, Wallet, FileText,
   Award, FileSignature, FilePlus, Receipt, Clock, Download, Edit3, Trash2, ChevronRight,
   GraduationCap, ArrowUpCircle,
 } from 'lucide-react'
-import { useStore } from '../store/StoreContext'
+import { useStore, splitTotalPay, monthlyEntitlement, monthsBetween } from '../store/StoreContext'
 import { PageHeader, Card, Avatar, Badge, Tabs, Modal, Field, Input, Select, Textarea, useConfirm, EmptyState } from '../components/ui'
 import { money, fmtDate, fmtDateTime } from '../lib/format'
-import { offerLetterHTML, internshipOfferLetterHTML, appointmentLetterHTML, promotionLetterHTML, payslipHTML } from '../lib/documents'
+import { offerLetterHTML, internshipOfferLetterHTML, appointmentLetterHTML, promotionLetterHTML, payslipHTML, payslipBundleHTML } from '../lib/documents'
 import { exportPDF, exportDOC } from '../lib/export'
 
 function InfoRow({ icon: Icon, label, value }) {
@@ -151,33 +151,150 @@ function PromoteModal({ emp, open, onClose }) {
   )
 }
 
-// ---------- Payslip Modal ----------
+// ---------- Payslip Modal (single month, or bulk over a date range) ----------
 function PayslipModal({ emp, open, onClose }) {
-  const { generatePayslip, settings } = useStore()
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
+  const { generatePayslip, generatePayslipRange, settings } = useStore()
+  const thisMonth = new Date().toISOString().slice(0, 7)
+  const [mode, setMode] = useState('single')
+
+  // single-month state
+  const [month, setMonth] = useState(thisMonth)
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10))
   const [workedDays, setWorkedDays] = useState(26)
-  const [incentive, setIncentive] = useState('')
+  const [totalPay, setTotalPay] = useState('')
   const [loan, setLoan] = useState('')
-  const run = (fn) => {
-    const slip = generatePayslip(emp.id, month, payDate, { workedDays, incentive, loan })
+
+  // range state — one row of inputs per month
+  const [from, setFrom] = useState(thisMonth)
+  const [to, setTo] = useState(thisMonth)
+  const [rows, setRows] = useState({}) // { 'YYYY-MM': { totalPay, workedDays, loan } }
+  const [fillAll, setFillAll] = useState('')
+
+  const monthly = monthlyEntitlement(emp)
+  const months = useMemo(() => monthsBetween(from, to), [from, to])
+  const rowFor = (m) => rows[m] || { totalPay: '', workedDays: 26, loan: '' }
+  const setRow = (m, k, v) => setRows((p) => ({ ...p, [m]: { ...rowFor(m), [k]: v } }))
+  const applyAll = () => setRows(Object.fromEntries(months.map((m) => [m, { ...rowFor(m), totalPay: fillAll }])))
+
+  // Local date string — toISOString() would shift back a day in +ve timezones.
+  const lastDayOf = (m) => {
+    const [y, mm] = m.split('-').map(Number)
+    const d = new Date(y, mm, 0)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  const label = (m) => new Date(m + '-01').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+
+  const runSingle = (fn) => {
+    const slip = generatePayslip(emp.id, month, payDate, { workedDays, totalPay, loan })
     if (slip && fn) fn(slip)
     onClose()
   }
+  const runRange = (fn) => {
+    const specs = months.map((m) => {
+      const r = rowFor(m)
+      return { month: m, payDate: lastDayOf(m), totalPay: r.totalPay, workedDays: r.workedDays, loan: r.loan }
+    })
+    const slips = generatePayslipRange(emp.id, specs)
+    if (slips?.length && fn) fn(slips)
+    onClose()
+  }
+
+  const rangeTotal = months.reduce((a, m) => a + (Number(rowFor(m).totalPay) || 0), 0)
+
   return (
-    <Modal open={open} onClose={onClose} title={`Generate Payslip — ${emp.name}`} size="sm"
-      footer={<>
-        <button className="btn-outline" onClick={() => run((s) => exportDOC(payslipHTML(emp, s, settings.company), `${emp.name}-Payslip.doc`))}>Save DOCX</button>
-        <button className="btn-primary" onClick={() => run((s) => exportPDF(payslipHTML(emp, s, settings.company), 'Payslip'))}>Generate PDF</button>
-      </>}>
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Pay Month"><Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>
-        <Field label="Pay Date"><Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} /></Field>
-        <Field label="Worked Days"><Input type="number" value={workedDays} onChange={(e) => setWorkedDays(e.target.value)} /></Field>
-        <Field label="Incentive Pay (optional)"><Input type="number" placeholder={`Default ₹${emp.compensation?.bonus || 0}`} value={incentive} onChange={(e) => setIncentive(e.target.value)} /></Field>
-        <Field label="Loan Deduction (optional)"><Input type="number" placeholder="0" value={loan} onChange={(e) => setLoan(e.target.value)} /></Field>
+    <Modal open={open} onClose={onClose} title={`Generate Payslip — ${emp.name}`} size={mode === 'range' ? 'lg' : 'md'}
+      footer={mode === 'single' ? (
+        <>
+          <button className="btn-outline" onClick={() => runSingle((s) => exportDOC(payslipHTML(emp, s, settings.company), `${emp.name}-Payslip.doc`))}>Save DOCX</button>
+          <button className="btn-primary" onClick={() => runSingle((s) => exportPDF(payslipHTML(emp, s, settings.company), 'Payslip'))}>Generate PDF</button>
+        </>
+      ) : (
+        <>
+          <button className="btn-outline" onClick={() => runRange(null)}>Generate & Store Only</button>
+          <button className="btn-primary" disabled={!months.length} onClick={() => runRange((ss) => exportPDF(payslipBundleHTML(emp, ss, settings.company), `Payslips ${label(from)} – ${label(to)}`))}>
+            <Download size={15} /> Generate {months.length} Payslip{months.length === 1 ? '' : 's'} (PDF)
+          </button>
+        </>
+      )}>
+      <div className="mb-4"><Tabs active={mode} onChange={setMode} tabs={[{ value: 'single', label: 'Single Month' }, { value: 'range', label: 'Date Range (Bulk)' }]} /></div>
+
+      <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 mb-4 text-xs text-slate-500 dark:text-slate-400">
+        Enter the <b>Total Pay</b> actually paid for a month and it splits automatically: the first <b>{money(monthly)}</b> (monthly CTC entitlement) becomes <b>Base Salary</b>, anything above it becomes <b>Incentive Pay</b>. Leave blank to use the saved salary structure.
       </div>
-      <p className="text-xs text-slate-400 mt-4">Basic/HRA/allowances come from the salary structure; PF/ESIC/TDS follow the enable toggles. The payslip is stored in the profile & timeline.</p>
+
+      {mode === 'single' ? (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Pay Month"><Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>
+            <Field label="Pay Date"><Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} /></Field>
+            <Field label="Total Pay for the month (₹)"><Input type="number" placeholder="Blank = use structure" value={totalPay} onChange={(e) => setTotalPay(e.target.value)} /></Field>
+            <Field label="Worked Days"><Input type="number" value={workedDays} onChange={(e) => setWorkedDays(e.target.value)} /></Field>
+            <Field label="Loan Deduction (optional)"><Input type="number" placeholder="0" value={loan} onChange={(e) => setLoan(e.target.value)} /></Field>
+          </div>
+          {totalPay !== '' && (
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              {(() => { const s = splitTotalPay(emp, totalPay); return (
+                <>
+                  <div className="rounded-lg bg-brand-600/10 p-2.5"><p className="text-xs text-slate-400">Base Salary</p><p className="font-bold text-brand-600">{money(s.basic)}</p></div>
+                  <div className="rounded-lg bg-violet-500/10 p-2.5"><p className="text-xs text-slate-400">Incentive Pay</p><p className="font-bold text-violet-600">{money(s.incentive)}</p></div>
+                  <div className="rounded-lg bg-emerald-500/10 p-2.5"><p className="text-xs text-slate-400">Total</p><p className="font-bold text-emerald-600">{money(s.total)}</p></div>
+                </>
+              )})()}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="grid sm:grid-cols-3 gap-3 items-end">
+            <Field label="From Month"><Input type="month" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+            <Field label="To Month"><Input type="month" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+            <div className="flex gap-2">
+              <Field label="Set all months to (₹)" className="flex-1"><Input type="number" value={fillAll} onChange={(e) => setFillAll(e.target.value)} placeholder="e.g. 30000" /></Field>
+              <button className="btn-outline mb-0.5" onClick={applyAll} disabled={!months.length}>Apply</button>
+            </div>
+          </div>
+
+          {!months.length ? (
+            <p className="text-sm text-rose-500 mt-4">“To Month” must be the same as or after “From Month”.</p>
+          ) : (
+            <div className="mt-4 card !p-0 overflow-hidden">
+              <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 dark:bg-slate-900/60 sticky top-0">
+                    <tr>
+                      <th className="th">Month</th><th className="th">Total Pay (₹)</th>
+                      <th className="th text-right">Base Salary</th><th className="th text-right">Incentive</th>
+                      <th className="th">Days</th><th className="th">Loan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {months.map((m) => {
+                      const r = rowFor(m)
+                      const s = splitTotalPay(emp, r.totalPay)
+                      const blank = r.totalPay === '' || r.totalPay == null
+                      return (
+                        <tr key={m}>
+                          <td className="td font-medium whitespace-nowrap">{label(m)}</td>
+                          <td className="td"><input className="input !py-1.5 w-28" type="number" placeholder="structure" value={r.totalPay} onChange={(e) => setRow(m, 'totalPay', e.target.value)} /></td>
+                          <td className="td text-right font-semibold">{blank ? <span className="text-slate-400">—</span> : money(s.basic)}</td>
+                          <td className="td text-right font-semibold text-violet-600">{blank ? <span className="text-slate-400">—</span> : money(s.incentive)}</td>
+                          <td className="td"><input className="input !py-1.5 w-16" type="number" value={r.workedDays} onChange={(e) => setRow(m, 'workedDays', e.target.value)} /></td>
+                          <td className="td"><input className="input !py-1.5 w-20" type="number" placeholder="0" value={r.loan} onChange={(e) => setRow(m, 'loan', e.target.value)} /></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-between px-4 py-2.5 border-t border-slate-200 dark:border-slate-800 text-sm">
+                <span className="text-slate-500">{months.length} month{months.length === 1 ? '' : 's'} · pay date = last day of each month</span>
+                <span className="font-bold">Total: {money(rangeTotal)}</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      <p className="text-xs text-slate-400 mt-4">PF/ESIC/TDS follow the employee's enable toggles. Regenerating a month replaces its existing payslip. All slips are stored in the profile, Document Center & timeline.</p>
     </Modal>
   )
 }
@@ -542,7 +659,13 @@ export default function EmployeeProfile() {
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {empSlips.map((s) => (
                 <div key={s.id} className="flex items-center justify-between px-5 py-3">
-                  <div><p className="font-semibold text-sm">{s.monthLabel}</p><p className="text-xs text-slate-400">Gross {money(s.gross)} · Deductions {money(s.totalDeductions)}</p></div>
+                  <div>
+                    <p className="font-semibold text-sm">{s.monthLabel}</p>
+                    <p className="text-xs text-slate-400">
+                      Base {money(s.earnings?.basic)} · Incentive {money(s.earnings?.bonus)} · Deductions {money(s.totalDeductions)}
+                      {s.totalPay != null && <span className="ml-1.5 text-brand-500 font-medium">custom</span>}
+                    </p>
+                  </div>
                   <div className="flex items-center gap-3">
                     <p className="font-bold text-emerald-600">{money(s.net)}</p>
                     <button className="btn-ghost !p-1.5" onClick={() => exportPDF(payslipHTML(emp, s, settings.company), 'Payslip')}><Download size={16} /></button>

@@ -338,6 +338,16 @@ export function payslipHTML(emp, slip, company) {
   </div>`
 }
 
+// Several payslips in one document, one per printed page.
+export function payslipBundleHTML(emp, slips, company) {
+  return (slips || [])
+    .map(
+      (s, i) =>
+        `<div style="${i < slips.length - 1 ? 'page-break-after:always;break-after:page;' : ''}">${payslipHTML(emp, s, company)}</div>`
+    )
+    .join('')
+}
+
 // Resolve the GST/export split for an invoice, with safe fallbacks so previews
 // work even before the editor has stored the computed breakdown.
 export function computeInvoiceTax(inv, client, company) {

@@ -205,43 +205,42 @@ export function StoreProvider({ children }) {
     (empId, month, payDate, extra = {}) => {
       const emp = db.employees.find((e) => e.id === empId)
       if (!emp) return null
-      const c = emp.compensation
-      const bonus = extra.incentive != null && extra.incentive !== '' ? Number(extra.incentive) : c.bonus
-      const earnings = { basic: c.basic, hra: c.hra, special: c.special, other: c.other, bonus }
-      // Respect per-employee PF / ESIC / TDS enable toggles (default enabled).
-      const deductions = {
-        pf: c.pfEnabled === false ? 0 : c.pf,
-        esic: c.esicEnabled === false ? 0 : c.esic,
-        tax: c.taxEnabled === false ? 0 : c.tax,
-        other: 0,
-      }
-      const loan = Number(extra.loan || 0)
-      const gross = Object.values(earnings).reduce((a, b) => a + b, 0)
-      const totalDeductions = Object.values(deductions).reduce((a, b) => a + b, 0) + loan
-      const net = gross - totalDeductions
-      const ml = new Date(month + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-      const periodLabel = new Date(month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).replace(' ', '-')
-      const slip = {
-        id: uid('ps'),
-        empId,
-        month,
-        monthLabel: ml,
-        periodLabel,
-        workedDays: extra.workedDays != null && extra.workedDays !== '' ? Number(extra.workedDays) : 26,
-        loan,
-        payDate: payDate || new Date().toISOString().slice(0, 10),
-        earnings,
-        deductions,
-        gross,
-        totalDeductions,
-        net,
-      }
+      const slip = buildSlip(emp, month, payDate, extra)
       setDb((d) => ({ ...d, payslips: [slip, ...d.payslips.filter((p) => !(p.empId === empId && p.month === month))] }))
-      addTimeline(empId, 'Payslip Generated', `Payslip generated for ${ml}.`)
-      log('Payslip Generated', `${emp.name} — ${ml} (net ₹${net.toLocaleString('en-IN')})`)
+      addTimeline(empId, 'Payslip Generated', `Payslip generated for ${slip.monthLabel}.`)
+      log('Payslip Generated', `${emp.name} — ${slip.monthLabel} (net ₹${slip.net.toLocaleString('en-IN')})`)
       return slip
     },
     [db.employees, addTimeline, log]
+  )
+
+  // Bulk generate across a set of months for one employee. `specs` is
+  // [{ month, payDate, totalPay, workedDays, loan }] — one entry per month.
+  const generatePayslipRange = useCallback(
+    (empId, specs) => {
+      const emp = db.employees.find((e) => e.id === empId)
+      if (!emp || !specs?.length) return []
+      const slips = specs.map((s) => buildSlip(emp, s.month, s.payDate, s))
+      const months = new Set(slips.map((s) => s.month))
+      setDb((d) => ({
+        ...d,
+        payslips: [...slips, ...d.payslips.filter((p) => !(p.empId === empId && months.has(p.month)))],
+        timeline: [
+          ...d.timeline,
+          {
+            id: uid('tl'),
+            empId,
+            type: 'Payslip Generated',
+            note: `${slips.length} payslip(s) generated: ${slips[0].monthLabel} – ${slips[slips.length - 1].monthLabel}.`,
+            date: new Date().toISOString(),
+          },
+        ],
+      }))
+      const total = slips.reduce((a, s) => a + s.net, 0)
+      log('Payslips Generated', `${emp.name} — ${slips.length} months (net ₹${total.toLocaleString('en-IN')})`)
+      return slips
+    },
+    [db.employees, log]
   )
 
   const runPayroll = useCallback(
@@ -449,6 +448,7 @@ export function StoreProvider({ children }) {
     convertIntern,
     promoteEmployee,
     generatePayslip,
+    generatePayslipRange,
     runPayroll,
     addDocument,
     saveClient,
@@ -483,6 +483,82 @@ export const useStore = () => {
 }
 
 // Convert any currency to INR for unified finance roll-ups (illustrative rates).
+// Monthly entitlement from the annual CTC — the ceiling for Base Salary.
+export const monthlyEntitlement = (emp) => Math.round(Number(emp?.compensation?.ctc || 0) / 12)
+
+// Split a month's total pay: Base Salary fills the monthly CTC entitlement,
+// anything above it becomes Incentive Pay.
+export function splitTotalPay(emp, totalPay) {
+  const total = Math.max(0, Number(totalPay) || 0)
+  const monthly = monthlyEntitlement(emp)
+  const basic = Math.min(total, monthly)
+  return { basic, incentive: Math.max(0, total - monthly), monthly, total }
+}
+
+// Pure payslip builder shared by single and bulk generation.
+function buildSlip(emp, month, payDate, extra = {}) {
+  const c = emp.compensation || {}
+  const hasTotal = extra.totalPay != null && extra.totalPay !== ''
+
+  let earnings
+  if (hasTotal) {
+    // Custom total pay → Base Salary + Incentive Pay (allowances folded into base).
+    const { basic, incentive } = splitTotalPay(emp, extra.totalPay)
+    earnings = { basic, hra: 0, special: 0, other: 0, bonus: incentive }
+  } else {
+    const bonus = extra.incentive != null && extra.incentive !== '' ? Number(extra.incentive) : c.bonus
+    earnings = { basic: c.basic, hra: c.hra, special: c.special, other: c.other, bonus }
+  }
+
+  // Respect per-employee PF / ESIC / TDS enable toggles (default enabled).
+  const deductions = {
+    pf: c.pfEnabled === false ? 0 : c.pf,
+    esic: c.esicEnabled === false ? 0 : c.esic,
+    tax: c.taxEnabled === false ? 0 : c.tax,
+    other: 0,
+  }
+  const loan = Number(extra.loan || 0)
+  const gross = Object.values(earnings).reduce((a, b) => a + Number(b || 0), 0)
+  const totalDeductions = Object.values(deductions).reduce((a, b) => a + Number(b || 0), 0) + loan
+  const first = new Date(month + '-01')
+  // Local-date string: toISOString() would shift back a day in +ve timezones.
+  const lastDay = new Date(first.getFullYear(), first.getMonth() + 1, 0)
+  const lastDayStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
+
+  return {
+    id: uid('ps'),
+    empId: emp.id,
+    month,
+    monthLabel: first.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+    periodLabel: first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).replace(' ', '-'),
+    workedDays: extra.workedDays != null && extra.workedDays !== '' ? Number(extra.workedDays) : 26,
+    loan,
+    totalPay: hasTotal ? Number(extra.totalPay) : null,
+    payDate: payDate || lastDayStr,
+    earnings,
+    deductions,
+    gross,
+    totalDeductions,
+    net: gross - totalDeductions,
+  }
+}
+
+// Inclusive list of "YYYY-MM" keys between two months.
+export function monthsBetween(fromMonth, toMonth) {
+  if (!fromMonth || !toMonth) return []
+  const [fy, fm] = fromMonth.split('-').map(Number)
+  const [ty, tm] = toMonth.split('-').map(Number)
+  const out = []
+  let y = fy, m = fm
+  // Cap at 36 months so a mistyped range can't spin forever.
+  while ((y < ty || (y === ty && m <= tm)) && out.length < 36) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`)
+    m++
+    if (m > 12) { m = 1; y++ }
+  }
+  return out
+}
+
 const FX_TO_INR = { INR: 1, USD: 83, EUR: 90, GBP: 105, AED: 22.6, SGD: 62 }
 export const toINR = (amount, currency) => Number(amount || 0) * (FX_TO_INR[currency] || 1)
 

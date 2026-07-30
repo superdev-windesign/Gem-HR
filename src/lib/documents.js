@@ -1,5 +1,6 @@
 // Professional document HTML templates (used for PDF + DOCX export & preview).
 import { money, fmtDate } from './format.js'
+import { LOGO_DATA_URL } from './logo.js'
 
 // Duration/Qty may be free text (e.g. "Multiple Commissions"); treat non-numeric as 1.
 export const qtyNum = (q) => {
@@ -33,56 +34,60 @@ const ICON = {
 // and a contact footer. `body` is the letter content HTML.
 function letterhead(company, body) {
   const c = company || {}
-  const mark = `<svg width="46" height="34" viewBox="0 0 46 34" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex:none">
-      <path d="M4 4 H42 V13 L23 27 L4 13 Z" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M12 12 L18 20 L23 14 L28 20 L34 12" stroke="#0a0a0a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`
-  const logo = c.logo
-    ? `<img src="${c.logo}" alt="logo" style="height:40px"/>`
-    : `${mark}<span class="lh-word">windesign</span>`
+  // Official brand wordmark; a custom uploaded logo overrides it.
+  const logo = `<img src="${c.logo || LOGO_DATA_URL}" alt="windesign" class="lh-logo"/>`
+
+  // The header/footer live in <thead>/<tfoot> of a wrapper table: browsers repeat
+  // those on every printed page, so multi-page letters keep the letterhead.
   return `<style>
-    .lh{font-family:Inter,Arial,sans-serif;color:#1e293b;max-width:790px;margin:0 auto;position:relative}
+    .lh{font-family:Inter,'Helvetica Neue',Arial,sans-serif;color:#1e293b;background:#fff;max-width:800px;margin:0 auto;color-scheme:light}
     .lh *{box-sizing:border-box}
-    .lh .bar{height:12px;width:74%;background:#0a0a0a;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .lh .bar.top{border-radius:0 0 4px 0}
-    .lh .bar.bot{border-radius:4px 0 0 0;margin-left:auto}
-    .lh .head{display:flex;justify-content:space-between;align-items:center;padding:18px 8px 12px}
-    .lh .logo{display:flex;align-items:center;gap:10px}
-    .lh .lh-word{font-size:27px;font-weight:800;letter-spacing:-0.5px;color:#0a0a0a}
-    .lh .meta{text-align:right;font-size:12px;color:#475569;line-height:1.7}
-    .lh .rule{height:1px;background:#e2e8f0;margin:0 8px}
-    .lh .body{padding:24px 8px;font-size:13px;line-height:1.7}
-    .lh .contact{display:flex;justify-content:space-between;gap:16px;padding:12px 8px 16px;font-size:11px;color:#475569}
-    .lh .contact span{vertical-align:middle}
-    .lh h1.title{font-size:20px;font-weight:800;color:#1e293b;text-align:center;margin:0}
-    .lh .subtitle{text-align:center;font-size:11px;letter-spacing:3px;color:#64748b;margin:4px 0 18px;text-transform:uppercase}
-    .lh .refrow{display:flex;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:14px;font-size:12.5px}
-    .lh p{margin:10px 0}
-    .lh table.kv{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.5px}
+    .lh table.sheet{width:100%;border-collapse:collapse}
+    .lh .bar{height:11px;background:#0a0a0a;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .lh .bar-top{width:72%;border-radius:0 3px 3px 0}
+    .lh .bar-bot{width:72%;margin-left:auto;border-radius:3px 0 0 3px}
+    .lh .head{display:flex;justify-content:space-between;align-items:center;padding:16px 2px 12px;border-bottom:1px solid #e2e8f0}
+    .lh .lh-logo{height:34px;width:auto;display:block}
+    .lh .meta{text-align:right;font-size:11.5px;color:#475569;line-height:1.75;white-space:nowrap}
+    .lh .foot{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:10px 2px 12px;border-top:1px solid #e2e8f0;font-size:10.5px;color:#475569;line-height:1.5}
+    .lh .foot .cell{display:flex;gap:6px;align-items:flex-start}
+    .lh .foot svg{flex:none;margin-top:1px}
+    .lh .content{padding:22px 2px;font-size:12.5px;line-height:1.75}
+    .lh h1.title{font-size:19px;font-weight:800;color:#16264a;text-align:center;margin:0;letter-spacing:.3px}
+    .lh .subtitle{text-align:center;font-size:10px;letter-spacing:3.5px;color:#64748b;margin:5px 0 20px;text-transform:uppercase}
+    .lh .refrow{display:flex;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:16px;font-size:12px}
+    .lh p{margin:11px 0;text-align:justify}
+    .lh table.kv{width:100%;border-collapse:collapse;margin:16px 0;font-size:12px}
     .lh table.kv td{border:1px solid #e2e8f0;padding:9px 12px}
-    .lh table.kv .k{background:#f8fafc;font-weight:700;width:38%}
-    .lh table.comp{width:100%;border-collapse:collapse;margin:14px 0;font-size:12.5px}
+    .lh table.kv .k{background:#f8fafc;font-weight:700;width:36%}
+    .lh table.comp{width:100%;border-collapse:collapse;margin:14px 0;font-size:12px}
     .lh table.comp th,.lh table.comp td{border:1px solid #e2e8f0;padding:8px 10px;text-align:left}
-    .lh table.comp th{background:#f1f5f9;font-weight:700}
+    .lh table.comp th{background:#f1f5f9;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .lh table.comp .r{text-align:right}
-    .lh table.comp .tot{background:#f8fafc;font-weight:800}
-    .lh .sign{margin-top:44px;display:flex;justify-content:space-between}
+    .lh table.comp .tot{background:#f8fafc;font-weight:800;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .lh .sect{font-weight:700;color:#16264a;margin:18px 0 4px;font-size:13px}
+    .lh .sign{margin-top:46px;display:flex;justify-content:space-between;page-break-inside:avoid}
+    .lh table.kv,.lh table.comp,.lh .refrow{page-break-inside:avoid}
   </style>
   <div class="lh">
-    <div class="bar top"></div>
-    <div class="head">
-      <div class="logo">${logo}</div>
-      <div class="meta">${c.cin ? 'CIN: ' + c.cin : ''}<br/>${c.website || ''}</div>
-    </div>
-    <div class="rule"></div>
-    <div class="body">${body}</div>
-    <div class="rule"></div>
-    <div class="contact">
-      <div>${ICON.home} <span>${c.address || ''}</span></div>
-      <div>${ICON.phone} <span>${c.phone || ''}</span></div>
-      <div>${ICON.mail} <span>${c.email || ''}</span></div>
-    </div>
-    <div class="bar bot"></div>
+    <table class="sheet">
+      <thead><tr><td>
+        <div class="bar bar-top"></div>
+        <div class="head">
+          <div>${logo}</div>
+          <div class="meta">${c.cin ? 'CIN: ' + c.cin : ''}<br/>${c.website || ''}</div>
+        </div>
+      </td></tr></thead>
+      <tfoot><tr><td>
+        <div class="foot">
+          <div class="cell">${ICON.home}<span>${c.address || ''}</span></div>
+          <div class="cell">${ICON.phone}<span>${c.phone || ''}</span></div>
+          <div class="cell">${ICON.mail}<span>${c.email || ''}</span></div>
+        </div>
+        <div class="bar bar-bot"></div>
+      </td></tr></tfoot>
+      <tbody><tr><td><div class="content">${body}</div></td></tr></tbody>
+    </table>
   </div>`
 }
 
@@ -124,7 +129,7 @@ export function offerLetterHTML(emp, data, company) {
       ['Probation Period', data.probation || '3 months'],
       ['Notice Period', data.notice || '30 days'],
     ])}
-    <p><b>Compensation Structure</b></p>
+    <div class="sect">Compensation Structure</div>
     <table class="comp">
       <tr><th>Component</th><th class="r">Monthly</th><th class="r">Annual</th></tr>
       <tr><td>Basic Salary</td><td class="r">${money(s.basic, cur)}</td><td class="r">${money(s.basic * 12, cur)}</td></tr>
@@ -351,8 +356,8 @@ export function invoiceHTML(inv, client, company) {
   <div class="inv">
     <div class="top">
       <div>
-        ${company?.logo ? `<img src="${company.logo}" style="max-height:46px;margin-bottom:6px"/>` : ''}
-        <div class="title">${company?.name || 'Windesign'}</div>
+        <img src="${company?.logo || LOGO_DATA_URL}" alt="windesign" style="height:30px;display:block;margin-bottom:8px"/>
+        <div class="title" style="font-size:15px;color:#1e293b">${company?.name || 'Windesign'}</div>
         <div class="muted" style="max-width:300px;margin-top:4px">${company?.address || ''}</div>
         <div class="tag">${isGST ? 'GST INVOICE' : 'EXPORT INVOICE'}</div>
       </div>

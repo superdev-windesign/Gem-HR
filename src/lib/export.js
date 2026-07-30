@@ -47,7 +47,7 @@ export function exportJSON(data, filename = 'backup.json') {
 
 // DOCX-compatible: Word opens well-formed HTML saved as .doc
 export function exportDOC(htmlBody, filename = 'document.doc') {
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Document</title></head><body>${htmlBody}</body></html>`
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Document</title><style>@page{margin:14mm 12mm}body{font-family:Inter,Arial,sans-serif}</style></head><body>${htmlBody}</body></html>`
   download(new Blob(['﻿', html], { type: 'application/msword' }), filename)
 }
 
@@ -58,11 +58,15 @@ export function exportPDF(htmlBody, title = 'Document') {
     alert('Please allow popups to export PDF.')
     return
   }
+  // @page margin:0 suppresses the browser's own header/footer (date, "about:blank",
+  // page numbers); our own padding provides the printable margin instead.
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
     <style>
-      *{box-sizing:border-box} body{font-family:Inter,Arial,sans-serif;color:#1e293b;margin:0;padding:40px;line-height:1.55}
+      @page{ margin:0 }
+      *{box-sizing:border-box}
+      html{color-scheme:light}
+      body{font-family:Inter,Arial,sans-serif;color:#1e293b;background:#fff;margin:0;padding:14mm 12mm;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}
       h1,h2,h3{margin:0 0 8px} table{width:100%;border-collapse:collapse}
-      @media print{ @page{ margin:14mm } }
     </style></head><body>${htmlBody}
     <script>window.onload=function(){setTimeout(function(){window.print()},250)}<\/script>
     </body></html>`)

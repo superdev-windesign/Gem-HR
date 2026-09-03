@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { X, ChevronDown, Search as SearchIcon, Inbox } from 'lucide-react'
 import { initials, colorFromString } from '../lib/format'
+import { DatePicker, MonthPicker } from './DatePicker'
 
 export function Card({ className = '', children, ...rest }) {
   return (
@@ -128,7 +129,11 @@ export function Field({ label, children, className = '' }) {
   )
 }
 
+// Date and month fields get a calendar instead of the browser's native
+// picker. Same value strings and onChange shape, so callers don't change.
 export function Input(props) {
+  if (props.type === 'date') return <DatePicker {...props} />
+  if (props.type === 'month') return <MonthPicker {...props} />
   return <input className="input" {...props} />
 }
 export function Textarea(props) {

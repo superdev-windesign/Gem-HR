@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5180,
     host: true,
     proxy: {
-      '/api': 'http://localhost:8787',
+      '/api': process.env.WD_API_PROXY || 'http://localhost:8787',
     },
   },
 })

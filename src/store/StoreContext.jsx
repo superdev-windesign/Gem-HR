@@ -1,3 +1,4 @@
+import { nextNumber, reserveNumber, mergeInvoiceImport, validateInvoice } from '../lib/invoicing.js'
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { buildSeed, buildEmpty } from '../lib/seed'
 import { uid, monthKey } from '../lib/format'
@@ -25,6 +26,10 @@ export function StoreProvider({ children }) {
   // Together these prevent the local cache from being pushed back over Turso.
   const readyToSave = useRef(false)
   const lastSynced = useRef(null)
+  const revision = useRef(null)
+  const saveQueue = useRef(Promise.resolve())
+  const [saveError,setSaveError]=useState('')
+  const contentJSON = state => JSON.stringify({...state,_revision:undefined})
 
   // On mount, pull authoritative state from Turso (falls back to local cache).
   useEffect(() => {
@@ -33,26 +38,35 @@ export function StoreProvider({ children }) {
       .then((state) => {
         if (cancelled) return
         if (state) {
-          lastSynced.current = JSON.stringify(state)
+          lastSynced.current = contentJSON(state)
+          revision.current=state._revision
           setDb(state)
         }
+        readyToSave.current = true
         setStatus('online')
       })
       .catch(() => { if (!cancelled) setStatus('offline') })
-      .finally(() => { if (!cancelled) readyToSave.current = true })
+
     return () => { cancelled = true }
   }, [])
 
   // Persist: always cache locally; debounce-push to Turso only for real changes.
   useEffect(() => {
-    const serialized = JSON.stringify(db)
+    const serialized = contentJSON(db)
     try { localStorage.setItem(KEY, serialized) } catch {}
     if (!readyToSave.current) return
     if (serialized === lastSynced.current) return
     const t = setTimeout(() => {
-      saveState(db)
-        .then(() => { lastSynced.current = serialized; setStatus('online') })
-        .catch(() => setStatus('offline'))
+      saveQueue.current=saveQueue.current.then(async()=>{
+        if(!readyToSave.current) return
+        setStatus('saving')
+        try {
+          const result=await saveState({...db,_revision:revision.current})
+          revision.current=result.revision
+          lastSynced.current=serialized
+          setStatus('online');setSaveError('')
+        }catch(e){setStatus('offline');setSaveError(e.message);readyToSave.current=false}
+      })
     }, 500)
     return () => clearTimeout(t)
   }, [db])
@@ -266,46 +280,32 @@ export function StoreProvider({ children }) {
 
   // ---- Clients ---------------------------------------------------------
   const saveClient = useCallback((client) => {
-    setDb((d) => {
-      const exists = d.clients.some((c) => c.id === client.id)
-      const full = exists ? client : { ...client, id: uid('cl') }
-      const clients = exists ? d.clients.map((c) => (c.id === client.id ? client : c)) : [...d.clients, full]
-      return { ...d, clients }
-    })
+    const full = { ...client, id: client.id || uid('cl') }
+    setDb(d => ({...d, clients:d.clients.some(c=>c.id===full.id) ? d.clients.map(c=>c.id===full.id?full:c) : [...d.clients,full]}))
+    return full
   }, [])
-
-  const deleteClient = useCallback((id) => {
-    setDb((d) => ({ ...d, clients: d.clients.filter((c) => c.id !== id) }))
+  const deleteClient = useCallback(id => {
+    setDb(d=>({...d, invoices:d.invoices.map(i=>i.clientId===id?{...i,clientSnapshot:i.clientSnapshot||d.clients.find(c=>c.id===id)}:i), clients:d.clients.filter(c=>c.id!==id)}))
   }, [])
-
-  // ---- Invoices --------------------------------------------------------
-  // Numbers follow the reference format: IND2601 (Indian) / INT2601 (export),
-  // i.e. <prefix><FY year code><running sequence>, sequenced per prefix.
-  const nextInvoiceNumber = useCallback(
-    (type = 'gst') => {
-      const cfg = db.settings.invoice || { yearCode: '26', indianPrefix: 'IND', exportPrefix: 'INT' }
-      const prefix = type === 'export' ? cfg.exportPrefix : cfg.indianPrefix
-      const head = `${prefix}${cfg.yearCode}`
-      const seqs = db.invoices
-        .filter((i) => String(i.number).startsWith(prefix))
-        .map((i) => parseInt(String(i.number).slice(prefix.length + String(cfg.yearCode).length), 10))
-        .filter((n) => !isNaN(n))
-      const next = (seqs.length ? Math.max(...seqs) : 0) + 1
-      return head + String(next).padStart(2, '0')
-    },
-    [db.invoices, db.settings]
-  )
+  const nextInvoiceNumber = useCallback((type='gst',date=new Date().toISOString().slice(0,10)) => nextNumber(db.invoices,type,date,db.settings.invoice),[db.invoices,db.settings])
+  const importInvoices = useCallback((entries,paid) => {
+    const {state,result}=mergeInvoiceImport(db,entries,paid)
+    setDb(state)
+    return result
+  },[db])
 
   const saveInvoice = useCallback(
     (inv) => {
+      const errors=validateInvoice(inv,db.invoices,inv.clientSnapshot || db.clients.find(c=>c.id===inv.clientId),{historical:!!inv.imported})
+      if(errors.length) throw new Error(errors.join(' '))
       setDb((d) => {
         const exists = d.invoices.some((i) => i.id === inv.id)
         const invoices = exists ? d.invoices.map((i) => (i.id === inv.id ? inv : i)) : [{ ...inv, events: inv.events || [{ type: 'Created', date: new Date().toISOString() }] }, ...d.invoices]
-        return { ...d, invoices }
+        return { ...d, invoices, settings:{...d.settings,invoice:reserveNumber(d.settings.invoice,inv.number)} }
       })
       log(db.invoices.some((i) => i.id === inv.id) ? 'Invoice Updated' : 'Invoice Created', `${inv.number}`)
     },
-    [log, db.invoices]
+    [log, db.invoices, db.clients]
   )
 
   const setInvoiceStatus = useCallback((id, status) => {
@@ -454,6 +454,7 @@ export function StoreProvider({ children }) {
     saveClient,
     deleteClient,
     nextInvoiceNumber,
+    importInvoices,
     saveInvoice,
     setInvoiceStatus,
     recordPayment,
@@ -473,7 +474,7 @@ export function StoreProvider({ children }) {
     updateSettings,
   }
 
-  return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>
+  return <StoreCtx.Provider value={value}>{saveError&&<div role="alert" className="fixed bottom-4 left-4 right-4 z-[100] rounded-xl bg-rose-700 text-white p-4 shadow-xl">Changes could not be saved: {saveError} <button className="underline font-bold ml-2" onClick={()=>window.location.reload()}>Reload saved data</button></div>}{children}</StoreCtx.Provider>
 }
 
 export const useStore = () => {

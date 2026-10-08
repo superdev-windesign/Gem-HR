@@ -5,3 +5,9 @@ dist
 .vite
 .env
 .env.local
+
+*.db
+*.db-wal
+*.db-shm
+invoice-import.json
+invoice-backup-*.json

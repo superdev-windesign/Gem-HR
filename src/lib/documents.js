@@ -368,10 +368,10 @@ export function computeInvoiceTax(inv, client, company) {
     if (inv.cgst != null || inv.sgst != null || inv.igst != null) {
       cgst = Number(inv.cgst || 0); sgst = Number(inv.sgst || 0); igst = Number(inv.igst || 0)
     } else if (interState) {
-      igst = Math.round((taxable * rate) / 100)
+      igst = Math.round(taxable * rate) / 100
     } else {
-      cgst = Math.round((taxable * rate) / 200)
-      sgst = Math.round((taxable * rate) / 200)
+      cgst = Math.round(taxable * rate / 2) / 100
+      sgst = Math.round(taxable * rate / 2) / 100
     }
   }
   const taxAmount = cgst + sgst + igst
@@ -380,6 +380,13 @@ export function computeInvoiceTax(inv, client, company) {
 }
 
 export function invoiceHTML(inv, client, company) {
+  // PDF/customer text is untrusted; never interpolate raw HTML from an import.
+  const escape = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+  const safe = value => typeof value === 'string' ? escape(value) : Array.isArray(value) ? value.map(safe) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k,v])=>[k,safe(v)])) : value
+  client = safe(inv.clientSnapshot || client)
+  inv = safe(inv)
+  company = safe(company)
+
   const t = computeInvoiceTax(inv, client, company)
   const isGST = t.type === 'gst'
   const cur = inv.currency || (isGST ? 'INR' : 'USD')
@@ -395,13 +402,13 @@ export function invoiceHTML(inv, client, company) {
         <td style="text-align:center">${i + 1}</td>
         <td><b>${it.description || ''}</b>${it.note ? `<div style="font-size:11px;color:#64748b">${it.note}</div>` : ''}</td>
         <td style="text-align:center">${it.qty}</td>
-        <td style="text-align:right">${money(it.rate, cur, { decimals: isGST ? 0 : 2 })}</td>
-        <td style="text-align:right">${money(qtyNum(it.qty) * Number(it.rate || 0), cur, { decimals: isGST ? 0 : 2 })}</td>
+        <td style="text-align:right">${money(it.rate, cur, { decimals: 2 })}</td>
+        <td style="text-align:right">${money(qtyNum(it.qty) * Number(it.rate || 0), cur, { decimals: 2 })}</td>
       </tr>`
     )
     .join('')
 
-  const taxRows = isGST
+  const taxRows = inv.imported && inv.taxLines?.length ? inv.taxLines.map(line=>`<tr><td style="text-align:right">${line.label}</td><td style="text-align:right">${money(line.amount,cur)}</td></tr>`).join('') : isGST
     ? `<tr><td colspan="4" style="text-align:right;border:none">Taxable Value</td><td style="text-align:right">${money(t.taxable, cur)}</td></tr>
        ${t.interState
         ? `<tr><td colspan="4" style="text-align:right;border:none">IGST ${t.rate}%</td><td style="text-align:right">${money(t.igst, cur)}</td></tr>`
@@ -473,7 +480,7 @@ export function invoiceHTML(inv, client, company) {
     <table class="tot">
       ${isGST ? taxRows : `<tr><td style="text-align:right;border:none">Subtotal</td><td style="text-align:right">${money(t.subtotal, cur, { decimals: 2 })}</td></tr>`}
       ${inv.discount ? `<tr><td style="text-align:right;border:none">Discount</td><td style="text-align:right">− ${money(inv.discount, cur)}</td></tr>` : ''}
-      <tr class="grand"><td>Total Amount${isGST ? '' : ` (${cur})`}</td><td style="text-align:right">${money(t.total, cur, { decimals: isGST ? 0 : 2 })}</td></tr>
+      <tr class="grand"><td>Total Amount${isGST ? '' : ` (${cur})`}</td><td style="text-align:right">${money(t.total, cur, { decimals: 2 })}</td></tr>
       ${inv.amountPaid ? `<tr><td style="text-align:right;border:none">Paid</td><td style="text-align:right">${money(inv.amountPaid, cur)}</td></tr><tr class="grand"><td>Balance Due</td><td style="text-align:right">${money(t.total - inv.amountPaid, cur)}</td></tr>` : ''}
     </table>
 

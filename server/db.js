@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { validateInvoiceState } from './stateValidation.js'
 // Turso (libSQL) data layer for Windesign OS.
 // Each collection is stored as a table of (id, data-JSON) rows so the whole
 // workspace can be read/written as one state object while remaining queryable.
@@ -31,15 +33,21 @@ export async function ensureSchema() {
   )
 }
 
-export async function readState() {
+async function readFrom(executor) {
   const out = {}
   for (const c of COLLECTIONS) {
-    const res = await client.execute(`SELECT data FROM ${c}`)
+    const res = await executor.execute(`SELECT data FROM ${c} ORDER BY id`)
     out[c] = res.rows.map((r) => JSON.parse(r.data))
   }
-  const s = await client.execute(`SELECT data FROM settings WHERE id = 1`)
+  const s = await executor.execute(`SELECT data FROM settings WHERE id = 1`)
   out.settings = s.rows.length ? JSON.parse(s.rows[0].data) : null
   return out
+}
+
+const revisionOf = state => createHash('sha256').update(JSON.stringify(state)).digest('hex')
+export async function readState() {
+  const tx=await client.transaction('read')
+  try {const state=await readFrom(tx);await tx.commit();return {...state,_revision:revisionOf(state)}} finally {tx.close()}
 }
 
 export async function isSeeded() {
@@ -47,7 +55,8 @@ export async function isSeeded() {
   return Number(res.rows[0]?.n || 0) > 0
 }
 
-export async function writeState(state) {
+export async function writeState(state, expectedRevision) {
+  validateInvoiceState(state)
   const stmts = []
   for (const c of COLLECTIONS) {
     stmts.push({ sql: `DELETE FROM ${c}`, args: [] })
@@ -66,5 +75,12 @@ export async function writeState(state) {
     })
   }
   // libSQL allows up to large batches; run as a single write transaction.
-  await client.batch(stmts, 'write')
+  const tx=await client.transaction('write')
+  try {
+    if(expectedRevision!==undefined && revisionOf(await readFrom(tx))!==expectedRevision) throw Object.assign(new Error('Another session changed this workspace. Reload before saving.'),{status:409})
+    await tx.batch(stmts)
+    const saved=await readFrom(tx)
+    await tx.commit()
+    return revisionOf(saved)
+  } finally {tx.close()}
 }

@@ -11,9 +11,9 @@ export function Card({ className = '', children, ...rest }) {
   )
 }
 
-export function PageHeader({ title, subtitle, actions, icon: Icon }) {
+export function PageHeader({ title, subtitle, actions, icon: Icon, stackActions = false }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+    <div className={`flex flex-col ${stackActions ? '' : 'sm:flex-row sm:items-center sm:justify-between'} gap-3 mb-6`}>
       <div className="flex items-center gap-3">
         {Icon && (
           <div className="grid place-items-center h-11 w-11 rounded-xl bg-brand-600/10 text-brand-600 dark:text-brand-400">

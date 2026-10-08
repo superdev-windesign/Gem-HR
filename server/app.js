@@ -45,11 +45,12 @@ export function createApp() {
     try {
       if (!req.body || !Array.isArray(req.body.employees)) return res.status(400).json({ error: 'Invalid state payload' })
       await initSchema()
-      await writeState(req.body)
-      res.json({ ok: true })
+      if(!req.body._revision) return res.status(409).json({error:'Reload the app before saving. This session is out of date.'})
+      const revision=await writeState(req.body,req.body._revision)
+      res.json({ ok: true, revision })
     } catch (err) {
       console.error('PUT /state', err)
-      res.status(500).json({ error: err.message })
+      res.status(err.status || 400).json({ error: err.message })
     }
   })
 
@@ -59,7 +60,7 @@ export function createApp() {
       await writeState(buildSeed())
       res.json({ ok: true, ...(await readState()) })
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      res.status(err.status || 400).json({ error: err.message })
     }
   })
 
@@ -69,7 +70,7 @@ export function createApp() {
       await writeState(buildEmpty())
       res.json({ ok: true, ...(await readState()) })
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      res.status(err.status || 400).json({ error: err.message })
     }
   })
 

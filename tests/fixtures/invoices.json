@@ -1,0 +1,821 @@
+[
+  {
+    "client": {
+      "company": "Example Client 1",
+      "country": "India",
+      "currency": "INR",
+      "address": "Example billing address",
+      "gst": "27ABCDE1234F1Z5",
+      "stateCode": "27"
+    },
+    "invoice": {
+      "number": "IND2508",
+      "date": "2025-03-20",
+      "dueDate": "2025-04-04",
+      "type": "gst",
+      "currency": "INR",
+      "items": [
+        {
+          "id": "fixture-item-0",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 11000
+        }
+      ],
+      "subtotal": 11000,
+      "total": 12980,
+      "discount": 0,
+      "taxRate": 18,
+      "taxAmount": 1980,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 1980,
+      "taxLines": [
+        {
+          "label": "IGST 18%",
+          "amount": 1980
+        }
+      ],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-0"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 1",
+      "country": "India",
+      "currency": "INR",
+      "address": "Example billing address",
+      "gst": "27ABCDE1234F1Z5",
+      "stateCode": "27"
+    },
+    "invoice": {
+      "number": "IND2601",
+      "date": "2026-04-09",
+      "dueDate": "2026-04-24",
+      "type": "gst",
+      "currency": "INR",
+      "items": [
+        {
+          "id": "fixture-item-1",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 60000
+        }
+      ],
+      "subtotal": 60000,
+      "total": 70800,
+      "discount": 0,
+      "taxRate": 18,
+      "taxAmount": 10800,
+      "cgst": 0,
+      "sgst": 5400,
+      "igst": 5400,
+      "taxLines": [
+        {
+          "label": "IGST 9%",
+          "amount": 5400
+        },
+        {
+          "label": "SGST 9%",
+          "amount": 5400
+        }
+      ],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-1"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 2",
+      "country": "India",
+      "currency": "INR",
+      "address": "Example billing address",
+      "gst": "29ABCDE1234F1Z5",
+      "stateCode": "29"
+    },
+    "invoice": {
+      "number": "IND2602",
+      "date": "2026-05-28",
+      "dueDate": "2026-06-12",
+      "type": "gst",
+      "currency": "INR",
+      "items": [
+        {
+          "id": "fixture-item-2",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 100000
+        }
+      ],
+      "subtotal": 100000,
+      "total": 118000,
+      "discount": 0,
+      "taxRate": 18,
+      "taxAmount": 18000,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 18000,
+      "taxLines": [
+        {
+          "label": "IGST 18%",
+          "amount": 18000
+        }
+      ],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-2"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 3",
+      "country": "France",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2521",
+      "date": "2025-08-05",
+      "dueDate": "2025-08-20",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-3",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 750
+        }
+      ],
+      "subtotal": 750,
+      "total": 750,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-3"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 4",
+      "country": "United Kingdom",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2522",
+      "date": "2025-08-05",
+      "dueDate": "2025-08-20",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-4",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 1300
+        }
+      ],
+      "subtotal": 1300,
+      "total": 1300,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-4"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 5",
+      "country": "USA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2550",
+      "date": "2026-02-14",
+      "dueDate": "2026-03-01",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-5",
+          "description": "Example service",
+          "note": "",
+          "qty": "Multiple Commissions",
+          "rate": 5764
+        }
+      ],
+      "subtotal": 5764,
+      "total": 5764,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-5"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 6",
+      "country": "Hong Kong",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2551",
+      "date": "2026-03-01",
+      "dueDate": "2026-03-16",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-6",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 1500
+        }
+      ],
+      "subtotal": 1500,
+      "total": 1500,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-6"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 7",
+      "country": "USA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2552",
+      "date": "2026-03-03",
+      "dueDate": "2026-03-18",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-7",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 5861.41
+        }
+      ],
+      "subtotal": 5861.41,
+      "total": 5861.41,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-7"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 5",
+      "country": "USA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2553",
+      "date": "2026-03-09",
+      "dueDate": "2026-03-24",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-8",
+          "description": "Example service",
+          "note": "",
+          "qty": "Multiple Commissions",
+          "rate": 7025.15
+        }
+      ],
+      "subtotal": 7025.15,
+      "total": 7025.15,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-8"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 8",
+      "country": "USA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2554",
+      "date": "2026-03-14",
+      "dueDate": "2026-03-29",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-9",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 460
+        }
+      ],
+      "subtotal": 460,
+      "total": 460,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-9"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 5",
+      "country": "USA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2601",
+      "date": "2026-04-04",
+      "dueDate": "2026-04-19",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-10",
+          "description": "Example service",
+          "note": "",
+          "qty": "Multiple Commissions",
+          "rate": 6881.48
+        }
+      ],
+      "subtotal": 6881.48,
+      "total": 6881.48,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-10"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 4",
+      "country": "United Kingdom",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2602",
+      "date": "2026-04-12",
+      "dueDate": "2026-04-27",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-11",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 700
+        }
+      ],
+      "subtotal": 700,
+      "total": 700,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-11"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 9",
+      "country": "Singapore",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2603",
+      "date": "2026-04-20",
+      "dueDate": "2026-05-05",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-12",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 1800
+        }
+      ],
+      "subtotal": 1800,
+      "total": 1800,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-12"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 5",
+      "country": "USA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2604",
+      "date": "2026-04-22",
+      "dueDate": "2026-05-07",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-13",
+          "description": "Example service",
+          "note": "",
+          "qty": "Multiple Commissions",
+          "rate": 5000
+        }
+      ],
+      "subtotal": 5000,
+      "total": 5000,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-13"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 5",
+      "country": "USA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2605",
+      "date": "2026-05-08",
+      "dueDate": "2026-05-23",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-14",
+          "description": "Example service",
+          "note": "",
+          "qty": "Multiple Commissions",
+          "rate": 8023
+        }
+      ],
+      "subtotal": 8023,
+      "total": 8023,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-14"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 5",
+      "country": "USA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2606",
+      "date": "2026-06-04",
+      "dueDate": "2026-06-19",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-15",
+          "description": "Example service",
+          "note": "",
+          "qty": "Multiple Commissions",
+          "rate": 7574.78
+        }
+      ],
+      "subtotal": 7574.78,
+      "total": 7574.78,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-15"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 6",
+      "country": "Hong Kong",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2609",
+      "date": "2026-07-01",
+      "dueDate": "2026-07-16",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-16",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 1000
+        }
+      ],
+      "subtotal": 1000,
+      "total": 1000,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-16"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 5",
+      "country": "USA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2610",
+      "date": "2026-07-05",
+      "dueDate": "2026-07-20",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-17",
+          "description": "Example service",
+          "note": "",
+          "qty": "Multiple Commissions",
+          "rate": 8532.57
+        }
+      ],
+      "subtotal": 8532.57,
+      "total": 8532.57,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-17"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 5",
+      "country": "USA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2611",
+      "date": "2026-08-08",
+      "dueDate": "2026-08-23",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-18",
+          "description": "Example service",
+          "note": "",
+          "qty": "Multiple Commissions",
+          "rate": 6104.78
+        }
+      ],
+      "subtotal": 6104.78,
+      "total": 6104.78,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-18"
+    }
+  },
+  {
+    "client": {
+      "company": "Example Client 10",
+      "country": "CANADA",
+      "currency": "USD",
+      "address": "Example billing address",
+      "gst": "",
+      "stateCode": ""
+    },
+    "invoice": {
+      "number": "INT2612",
+      "date": "2026-08-12",
+      "dueDate": "2026-08-27",
+      "type": "export",
+      "currency": "USD",
+      "items": [
+        {
+          "id": "fixture-item-19",
+          "description": "Example service",
+          "note": "",
+          "qty": "1",
+          "rate": 700
+        }
+      ],
+      "subtotal": 700,
+      "total": 700,
+      "discount": 0,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 0,
+      "taxLines": [],
+      "importWarnings": [],
+      "modeOfTransport": "Digital",
+      "reverseCharge": "Not specified",
+      "notes": "",
+      "sourceHash": "fixture-19"
+    }
+  }
+]

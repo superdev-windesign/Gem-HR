@@ -1,3 +1,4 @@
+import ClientEditor from '../components/ClientEditor'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Plus, Download, Globe } from 'lucide-react'
@@ -7,32 +8,6 @@ import { exportCSV } from '../lib/export'
 import { money, compactMoney } from '../lib/format'
 import { CURRENCIES } from '../lib/format'
 import { uid } from '../lib/format'
-
-function ClientModal({ open, onClose, client }) {
-  const { saveClient } = useStore()
-  const blank = { id: uid('cl'), name: '', company: '', email: '', phone: '', country: 'India', currency: 'INR', gst: '', taxNumber: '', address: '', website: '', notes: '' }
-  const [form, setForm] = useState(client || blank)
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
-  const submit = () => { if (!form.company && !form.name) return; saveClient(form); onClose() }
-  return (
-    <Modal open={open} onClose={onClose} title={client ? 'Edit Client' : 'Add Client'} size="lg"
-      footer={<><button className="btn-outline" onClick={onClose}>Cancel</button><button className="btn-primary" onClick={submit}>Save Client</button></>}>
-      <div className="grid sm:grid-cols-2 gap-4">
-        <Field label="Company Name"><Input value={form.company} onChange={(e) => set('company', e.target.value)} /></Field>
-        <Field label="Contact Name"><Input value={form.name} onChange={(e) => set('name', e.target.value)} /></Field>
-        <Field label="Email"><Input value={form.email} onChange={(e) => set('email', e.target.value)} /></Field>
-        <Field label="Phone"><Input value={form.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
-        <Field label="Country"><Input value={form.country} onChange={(e) => set('country', e.target.value)} /></Field>
-        <Field label="Currency"><Select value={form.currency} onChange={(e) => set('currency', e.target.value)}>{Object.keys(CURRENCIES).map((c) => <option key={c}>{c}</option>)}</Select></Field>
-        <Field label="GST Number"><Input value={form.gst} onChange={(e) => set('gst', e.target.value)} /></Field>
-        <Field label="Tax Number"><Input value={form.taxNumber} onChange={(e) => set('taxNumber', e.target.value)} /></Field>
-        <Field label="Website"><Input value={form.website} onChange={(e) => set('website', e.target.value)} /></Field>
-        <Field label="Address"><Input value={form.address} onChange={(e) => set('address', e.target.value)} /></Field>
-      </div>
-      <Field label="Notes" className="mt-4"><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} /></Field>
-    </Modal>
-  )
-}
 
 export default function Clients() {
   const { clients, invoices } = useStore()
@@ -87,7 +62,7 @@ export default function Clients() {
         </div>
       )}
 
-      <ClientModal open={open} onClose={() => setOpen(false)} />
+      <ClientEditor open={open} onClose={() => setOpen(false)} />
     </div>
   )
 }

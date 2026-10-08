@@ -24,7 +24,7 @@ export async function saveState(state) {
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(state),
   })
-  if (!res.ok) throw new Error(`save ${res.status}`)
+  if (!res.ok) {const body=await res.json().catch(()=>({}));throw Object.assign(new Error(body.error || `save ${res.status}`),{status:res.status})}
   return res.json()
 }
 

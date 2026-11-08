@@ -17,6 +17,16 @@ export function reserveNumber(config = {}, number) {
   return { ...config, sequences: { ...config.sequences, [head]: Math.max(config.sequences?.[head] || 0, Number(m[3])) } }
 }
 export const clientForInvoice = (invoice, clients) => invoice.clientSnapshot || clients.find(c => c.id === invoice.clientId)
+// Selecting Paid is an explicit acknowledgement of full payment. Keep actual
+// receipt history; a status edit does not supply a receipt date or method.
+export function withInvoiceStatus(invoice, status = invoice.status) {
+  if (status !== 'Paid') return { ...invoice, status, amountPaid: Number(invoice.amountPaid || 0) }
+  const total = Math.round(Number(invoice.total) * 100) / 100
+  const recorded = Math.round((invoice.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0) * 100) / 100
+  if (!Number.isFinite(total) || total < 0) throw new Error('Enter a valid invoice total.')
+  if (recorded > total) throw new Error('The invoice total cannot be less than its recorded payments.')
+  return { ...invoice, status, amountPaid: total, paymentDateUnknown: recorded < total }
+}
 export const invoiceType = client => /^india$/i.test(client?.country?.trim() || '') ? 'gst' : 'export'
 export const addDays = (date, days) => { const d = new Date(date + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10) }
 export function duplicateInvoice(source, invoices, clients, date, config = {}) {

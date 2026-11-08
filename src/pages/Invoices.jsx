@@ -1,6 +1,6 @@
 import ClientEditor from '../components/ClientEditor'
 import InvoiceImport from '../components/InvoiceImport'
-import { duplicateInvoice, clientForInvoice, fiscalYear, fyLabel, addDays, validateInvoice } from '../lib/invoicing'
+import { duplicateInvoice, clientForInvoice, fiscalYear, fyLabel, addDays, validateInvoice, withInvoiceStatus } from '../lib/invoicing'
 import { useMemo, useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
@@ -72,11 +72,10 @@ function InvoiceEditor({ open, onClose, invoice, draft, initialClientId }) {
   const save = (status) => {
     const errs=validateInvoice(form,invoices,client,{historical:!!invoice?.imported && form.number===invoice.number && form.date===invoice.date && form.type===invoice.type})
     if(errs.length){setError(errs.join(' '));return}
-    try { saveInvoice({
+    try { saveInvoice(withInvoiceStatus({
       ...form, clientSnapshot:{...client}, taxLines:keepOriginalTaxes?form.taxLines:undefined, subtotal: t.subtotal, discount: Number(form.discount || 0), taxRate: Number(form.taxRate),
       cgst: t.cgst, sgst: t.sgst, igst: t.igst, taxAmount: t.taxAmount, total: t.total,
-      status: (status || form.status)==='Paid' && invoice && Number(form.amountPaid)<t.total ? 'Partially Paid' : status || form.status, amountPaid: !invoice && (status || form.status)==='Paid' ? t.total : Number(form.amountPaid || 0),
-    })
+    }, status || form.status))
     onClose()
     }catch(e){setError(e.message)}
   }
@@ -88,7 +87,7 @@ function InvoiceEditor({ open, onClose, invoice, draft, initialClientId }) {
       footer={<>
         <button className="btn-outline" onClick={onClose}>Cancel</button>
         <button className="btn-outline" onClick={() => save('Draft')}>Save Draft</button>
-        <button className="btn-primary" onClick={() => save(invoice ? form.status : 'Sent')}><Send size={15} /> {invoice ? 'Save Changes' : 'Save & Mark Sent'}</button>
+        <button className="btn-primary" onClick={() => save(!invoice && form.status === 'Draft' ? 'Sent' : form.status)}><Send size={15} /> {invoice ? 'Save Changes' : form.status === 'Draft' ? 'Save & Mark Sent' : 'Save Invoice'}</button>
       </>}>
       {error&&<p role="alert" className="rounded-lg bg-rose-50 text-rose-700 p-3 mb-4">{error}</p>}
       {draft&&<p className="text-sm text-slate-500 mb-4">New number and dates; payments and status reset. Select any client to fill their current billing details.</p>}
@@ -110,7 +109,7 @@ function InvoiceEditor({ open, onClose, invoice, draft, initialClientId }) {
         <Field label="Currency"><Select value={form.currency} onChange={(e) => set('currency', e.target.value)} disabled={isGST}>{Object.keys(CURRENCIES).map((c) => <option key={c}>{c}</option>)}</Select></Field>
         <Field label="Invoice Date"><Input type="date" value={form.date} onChange={(e) => {const date=e.target.value;setForm(f=>({...f,date,dueDate:date?addDays(date,15):'',number:invoice||!date?f.number:nextInvoiceNumber(f.type,date)}))}} /></Field>
         <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} /></Field>
-        <Field label="Status"><Select value={form.status} onChange={(e) => set('status', e.target.value)}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</Select></Field>
+        <Field label="Status"><Select aria-label="Invoice Status" value={form.status} onChange={(e) => set('status', e.target.value)}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</Select>{form.status === 'Paid' && <p className="text-xs text-slate-500 mt-1">Saving as Paid records the full invoice amount as paid. Existing payment history is kept.</p>}</Field>
         <Field label="Mode of Transport"><Input value={form.modeOfTransport} onChange={(e) => set('modeOfTransport', e.target.value)} /></Field>
         {isGST && <Field label="Reverse Charge"><Select value={form.reverseCharge} onChange={(e) => set('reverseCharge', e.target.value)}><option>No</option><option>Yes</option></Select></Field>}
         {isGST && <Field label="GST Rate (%)"><Input type="number" value={form.taxRate} onChange={(e) => set('taxRate', e.target.value)} /></Field>}

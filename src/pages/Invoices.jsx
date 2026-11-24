@@ -14,6 +14,7 @@ import { invoiceHTML, computeInvoiceTax } from '../lib/documents'
 import { exportPDF, exportDOC, exportCSV } from '../lib/export'
 
 const STATUSES = ['Draft', 'Sent', 'Viewed', 'Paid', 'Partially Paid', 'Overdue', 'Cancelled']
+const ADD_CLIENT_OPTION = '__add_client__'
 const typeFor = (client) => ((client?.country || '').toLowerCase() === 'india' ? 'gst' : 'export')
 
 function InvoiceEditor({ open, onClose, invoice, draft, initialClientId }) {
@@ -44,6 +45,10 @@ function InvoiceEditor({ open, onClose, invoice, draft, initialClientId }) {
   const isGST = form.type === 'gst'
 
   const onClientChange = (id, savedClient) => {
+    if (id === ADD_CLIENT_OPTION) {
+      setClientEditor({open:true,client:null})
+      return
+    }
     const c = savedClient || clients.find((x) => x.id === id)
     const type = typeFor(c)
     setForm((f) => ({
@@ -105,7 +110,7 @@ function InvoiceEditor({ open, onClose, invoice, draft, initialClientId }) {
 
       <div className="grid sm:grid-cols-3 gap-4">
         <Field label="Invoice Number"><Input aria-label="Invoice Number" value={form.number} onChange={(e) => set('number', e.target.value)} /></Field>
-        <Field label="Client"><Select aria-label="Invoice Client" value={form.clientId} onChange={(e) => onClientChange(e.target.value)}><option value="">Select client</option>{form.clientId&&!clients.some(c=>c.id===form.clientId)&&<option value={form.clientId}>{client?.company} (saved customer)</option>}{clients.map((c) => <option key={c.id} value={c.id}>{c.company || c.name}</option>)}</Select></Field>
+        <Field label="Client"><Select aria-label="Invoice Client" value={form.clientId} onChange={(e) => onClientChange(e.target.value)}><option value="">Select client</option><option value={ADD_CLIENT_OPTION}>+ Add Client</option>{form.clientId&&!clients.some(c=>c.id===form.clientId)&&<option value={form.clientId}>{client?.company} (saved customer)</option>}{clients.map((c) => <option key={c.id} value={c.id}>{c.company || c.name}</option>)}</Select></Field>
         <Field label="Currency"><Select value={form.currency} onChange={(e) => set('currency', e.target.value)} disabled={isGST}>{Object.keys(CURRENCIES).map((c) => <option key={c}>{c}</option>)}</Select></Field>
         <Field label="Invoice Date"><Input type="date" value={form.date} onChange={(e) => {const date=e.target.value;setForm(f=>({...f,date,dueDate:date?addDays(date,15):'',number:invoice||!date?f.number:nextInvoiceNumber(f.type,date)}))}} /></Field>
         <Field label="Due Date"><Input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} /></Field>
